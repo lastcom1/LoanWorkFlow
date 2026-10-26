@@ -17,7 +17,13 @@ class AppServiceProvider extends ServiceProvider
     {
         Paginator::useBootstrapFive();
 
-        if ($this->app->environment('production')) {
+        $appUrl = rtrim((string) config('app.url'), '/');
+        if ($appUrl !== '') {
+            URL::forceRootUrl($appUrl);
+        }
+
+        $scheme = parse_url($appUrl, PHP_URL_SCHEME);
+        if ($scheme === 'https' || $this->app->environment('production')) {
             URL::forceScheme('https');
         }
     }

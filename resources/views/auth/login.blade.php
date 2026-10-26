@@ -11,6 +11,9 @@
             <p>Transfer &amp; Reversal Complaint Portal</p>
         </div>
 
+        @if(session('status'))
+            <div class="alert alert-success">{{ session('status') }}</div>
+        @endif
         @if($errors->any())
             <div class="alert alert-danger">{{ $errors->first() }}</div>
         @endif
@@ -25,9 +28,12 @@
                 <label for="password">Password</label>
                 <input id="password" type="password" name="password" required>
             </div>
-            <label style="font-weight:500;margin-bottom:1rem;display:flex;gap:0.45rem;align-items:center">
-                <input type="checkbox" name="remember" value="1"> Remember this device
-            </label>
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:0.75rem;margin-bottom:1rem;flex-wrap:wrap">
+                <label style="font-weight:500;display:flex;gap:0.45rem;align-items:center;margin:0">
+                    <input type="checkbox" name="remember" value="1"> Remember this device
+                </label>
+                <a href="{{ route('password.request') }}">Forgot password?</a>
+            </div>
             <button class="btn btn-primary" style="width:100%" type="submit">Sign in securely</button>
         </form>
 

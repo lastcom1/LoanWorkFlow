@@ -91,6 +91,15 @@ php artisan queue:work
 
 With `MAIL_MAILER=log`, messages write to `storage/logs` instead of SMTP.
 
+## Password reset (DEMO)
+
+1. On the login page click **Forgot password?**
+2. Enter e.g. `submitter@nnmfb.demo` → Send reset link
+3. With `MAIL_MAILER=log`, open `storage\logs\laravel.log` and copy the reset URL
+4. Open the link, set a new password, then sign in
+
+Production uses Zoho SMTP from `.env` (branded HTML email).
+
 ## Smoke checklist
 
 1. Login as submitter → create Fund Transfer ticket  
@@ -99,3 +108,4 @@ With `MAIL_MAILER=log`, messages write to `storage/logs` instead of SMTP.
 4. Submit duplicate account+amount → warning badge  
 5. Reversal with same original reference → warning  
 6. Reject with reason → ticket retained and searchable  
+7. Forgot password → reset link (log mailer or Zoho)  
