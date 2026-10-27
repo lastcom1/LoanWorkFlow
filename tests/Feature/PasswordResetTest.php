@@ -95,4 +95,40 @@ class PasswordResetTest extends TestCase
 
         Notification::assertNothingSent();
     }
+
+    public function test_forgot_password_survives_smtp_failure_with_generic_status(): void
+    {
+        $this->useFailingMailTransport();
+
+        $user = User::factory()->create([
+            'email' => 'smtp-down@nnmfb.demo',
+            'is_active' => true,
+        ]);
+        $user->assignRole('submitter');
+
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => $user->email])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors()
+            ->assertStatus(302);
+
+        $status = session('status');
+        $this->assertIsString($status);
+        $this->assertStringContainsString('If that email is registered', $status);
+        $this->assertStringNotContainsString('SMTP', $status);
+        $this->assertStringNotContainsString('unreachable', strtolower($status));
+    }
+
+    public function test_forgot_password_unknown_email_still_generic_when_mailer_broken(): void
+    {
+        $this->useFailingMailTransport();
+
+        // No user — must not attempt send; still generic (and must not 500).
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => 'ghost@nnmfb.example'])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+    }
 }
