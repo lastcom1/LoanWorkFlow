@@ -14,16 +14,6 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
-    if (! File::exists(storage_path('app/installed.lock')) && ! app()->environment('testing')) {
-        try {
-            if (! \App\Models\User::query()->exists()) {
-                return redirect()->route('installer.welcome');
-            }
-        } catch (\Throwable) {
-            return redirect()->route('installer.welcome');
-        }
-    }
-
     return auth()->check()
         ? redirect()->route('dashboard')
         : redirect()->route('login');

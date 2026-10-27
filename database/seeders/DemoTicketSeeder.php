@@ -12,6 +12,12 @@ class DemoTicketSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->error('Refusing DemoTicketSeeder while APP_ENV=production.');
+
+            return;
+        }
+
         $submitter = User::query()->where('email', 'submitter@nnmfb.demo')->first();
         if (! $submitter) {
             return;

@@ -1,55 +1,33 @@
 # cPanel shared hosting deploy (overview)
 
-**Preferred for nigerianavymfb.com:** deploy under **`public_html/transfer`**  
-→ follow **[cpanel-public-html-transfer-deploy.md](./cpanel-public-html-transfer-deploy.md)**  
+**Required layout for nigerianavymfb.com:** app outside the web root + public entry under `/transfer`.
+
+→ Full steps: **[cpanel-public-html-transfer-deploy.md](./cpanel-public-html-transfer-deploy.md)**  
 → ZIP: `nnmfb-transfer-portal-package-b-public-html-transfer.zip`
+
+```
+~/nnmfb-portal/              ← Laravel application
+~/public_html/transfer/      ← index.php + assets only
+```
 
 Portal URL: **https://nigerianavymfb.com/transfer**
 
----
+## Production seeding (no DEMO users)
 
-## Alternate: app outside `public_html` (when you can place files above the docroot)
-
-Use only if your host lets you store code outside `public_html` and you still want `/transfer` as the public entry.
-
-```
-/home/USER/
-  nnmfb-portal/                 ← full Laravel app (not web-reachable)
-  public_html/
-    transfer/                   ← ONLY public entry files
-      index.php                 ← point autoload/bootstrap to ../../nnmfb-portal
-      .htaccess
-      css/ images/ favicon.png
+```bash
+cd ~/nnmfb-portal
+php artisan migrate --force
+php artisan db:seed --class=ProductionSeeder --force
+php artisan installer:lock --email=you@your-domain.com
 ```
 
-`public_html/transfer/index.php` should require the app root, for example:
+Do **not** run `php artisan db:seed --force` with demo seeders on production.  
+Do **not** run `DemoDatabaseSeeder` / `DefaultAdminSeeder` when `APP_ENV=production`.
 
-```php
-require __DIR__.'/../../nnmfb-portal/vendor/autoload.php';
-$app = require_once __DIR__.'/../../nnmfb-portal/bootstrap/app.php';
-```
+## Installer
 
-Set:
+Off by default (`INSTALLER_ENABLED=false`). If you must use it, gate with `INSTALLER_SETUP_SECRET`, then lock.
 
-```env
-APP_URL=https://nigerianavymfb.com/transfer
-APP_ENV=production
-APP_DEBUG=false
-```
+## Main website menu
 
-Then migrate/seed or use `/transfer/install`, set storage permissions, and add the main-site menu link (`main-site-portal-link.md`).
-
-## Not recommended: site-root install
-
-Installing the portal as the **entire** `public_html` root would replace the main NNMFB website. Prefer the `/transfer` subdirectory layout above.
-
-## Zoho SMTP & queues
-
-Same as the transfer subdirectory guide: configure SMTP in `.env` only; run `queue:work` via cPanel cron.
-
-## Security
-
-- `APP_DEBUG=false`
-- HTTPS + `SESSION_SECURE_COOKIE=true`
-- Change/delete DEMO users before production
-- Confirm sensitive paths are not downloadable
+See `main-site-portal-link.md`.

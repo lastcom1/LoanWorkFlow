@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build Package A (source) and Package B (public_html/transfer flat deploy)
+# Package A = source. Package B = app outside public_html + public_html/transfer entry.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 OUT="${1:-/cursor/stores/self/docs/packages}"
@@ -20,93 +20,90 @@ rm -f "$PKG_A"
        "./storage/app/public/*"
 )
 
-echo "==> Package B (public_html/transfer flat layout)"
-BUILD="$STAGE/transfer"
-mkdir -p "$BUILD"
+echo "==> Package B (nnmfb-portal + public_html/transfer entry)"
+APP="$STAGE/nnmfb-portal"
+WEB="$STAGE/public_html/transfer"
+mkdir -p "$APP" "$WEB"
 
-# Copy application (no .git / tests / node)
-rsync_like() {
-  tar -C "$ROOT" -cf - \
-    --exclude='.git' --exclude='node_modules' --exclude='.env' \
-    --exclude='database/database.sqlite' --exclude='storage/logs/*' \
-    --exclude='storage/framework/cache/data/*' --exclude='storage/framework/sessions/*' \
-    --exclude='storage/framework/views/*' --exclude='.phpunit.result.cache' \
-    --exclude='storage/app/installed.lock' --exclude='tests' --exclude='phpunit.xml' \
-    --exclude='deploy' \
-    . | tar -C "$BUILD" -xf -
-}
+rsync -a \
+  --exclude='.git' --exclude='node_modules' --exclude='.env' \
+  --exclude='database/database.sqlite' --exclude='storage/logs/' \
+  --exclude='storage/framework/cache/data/' --exclude='storage/framework/sessions/' \
+  --exclude='storage/framework/views/' --exclude='.phpunit.result.cache' \
+  --exclude='storage/app/installed.lock' --exclude='tests' --exclude='phpunit.xml' \
+  "$ROOT"/ "$APP"/
 
-if command -v rsync >/dev/null 2>&1; then
-  rsync -a --delete \
-    --exclude='.git' --exclude='node_modules' --exclude='.env' \
-    --exclude='database/database.sqlite' --exclude='storage/logs/' \
-    --exclude='storage/framework/cache/data/' --exclude='storage/framework/sessions/' \
-    --exclude='storage/framework/views/' --exclude='.phpunit.result.cache' \
-    --exclude='storage/app/installed.lock' --exclude='tests' --exclude='phpunit.xml' \
-    --exclude='deploy' \
-    "$ROOT"/ "$BUILD"/
-else
-  rsync_like
-fi
-
-# Ensure production vendor present
 (
-  cd "$BUILD"
-  if [[ ! -f vendor/autoload.php ]]; then
-    composer install --no-dev --optimize-autoloader --no-interaction
-  else
-    composer install --no-dev --optimize-autoloader --no-interaction
-  fi
+  cd "$APP"
+  composer install --no-dev --optimize-autoloader --no-interaction
 )
 
-# Flatten public/ into transfer root for subdirectory hosting
-cp -a "$BUILD/public/." "$BUILD/"
-cp -f "$ROOT/deploy/transfer-subdir/index.php" "$BUILD/index.php"
-cp -f "$ROOT/deploy/transfer-subdir/.htaccess" "$BUILD/.htaccess"
-# Keep a copy of original public assets path note; remove nested public to avoid confusion
-rm -rf "$BUILD/public"
-mkdir -p "$BUILD/public"
-# Compatibility stub if anything still references /public
-echo "Document root is this folder (public_html/transfer). Do not serve from a nested public/." > "$BUILD/public/README.txt"
+# Public entry only: front controller + static assets (no app/vendor)
+cp -f "$ROOT/deploy/transfer-public-entry/index.php" "$WEB/index.php"
+cp -f "$ROOT/deploy/transfer-public-entry/.htaccess" "$WEB/.htaccess"
+cp -a "$APP/public/css" "$WEB/css"
+cp -a "$APP/public/images" "$WEB/images"
+cp -f "$APP/public/favicon.png" "$WEB/favicon.png" 2>/dev/null || true
+cp -f "$APP/public/favicon.ico" "$WEB/favicon.ico" 2>/dev/null || true
+cp -f "$APP/public/robots.txt" "$WEB/robots.txt" 2>/dev/null || true
 
-# Seed storage placeholders
-mkdir -p "$BUILD/storage/framework/"{cache,sessions,views} "$BUILD/storage/logs" "$BUILD/storage/app/public" "$BUILD/bootstrap/cache"
-touch "$BUILD/storage/logs/.gitkeep" "$BUILD/bootstrap/cache/.gitkeep"
+# Point entry at sibling ../../nnmfb-portal from public_html/transfer
+# (dirname(__DIR__, 2)/nnmfb-portal == /home/USER/nnmfb-portal when transfer is under public_html)
 
-# Deploy readme inside package
-cat > "$BUILD/DEPLOY-TO-PUBLIC-HTML-TRANSFER.txt" <<'EOF'
-Extract the contents of this ZIP so that index.php and .htaccess land in:
+mkdir -p "$APP/storage/framework/"{cache,sessions,views} "$APP/storage/logs" "$APP/storage/app/public" "$APP/bootstrap/cache"
+# Lock installer by default in packaged production build
+echo '{"installed_at":null,"source":"package_default_locked","note":"Replace after real install or run installer:lock"}' > "$APP/storage/app/installed.lock"
 
-  public_html/transfer/
+mkdir -p "$APP/docs/guides"
+cp -f "$ROOT/docs/guides/"*.md "$APP/docs/guides/" 2>/dev/null || true
 
-Expected portal URL:
-  https://nigerianavymfb.com/transfer
+cat > "$STAGE/README-DEPLOY.txt" <<'EOF'
+NNMFB Transfer Portal — Package B layout
 
-Set in .env:
-  APP_URL=https://nigerianavymfb.com/transfer
-  APP_ENV=production
-  APP_DEBUG=false
+1) Upload/extract so you have:
+     /home/USER/nnmfb-portal/          ← full Laravel app (NOT web-accessible)
+     /home/USER/public_html/transfer/  ← index.php, .htaccess, css/, images/ only
 
-Full steps: see docs/guides/cpanel-public-html-transfer-deploy.md
+2) Edit public_html/transfer/index.php if your home path differs (default expects
+   dirname(public_html)/nnmfb-portal i.e. ~/nnmfb-portal).
+
+3) Copy nnmfb-portal/.env.example → .env, set:
+     APP_ENV=production
+     APP_DEBUG=false
+     APP_URL=https://nigerianavymfb.com/transfer
+     INSTALLER_ENABLED=false
+     SEED_DEMO_DATA=false
+     DB_* and Zoho SMTP
+
+4) SSH (recommended):
+     cd ~/nnmfb-portal
+     php artisan key:generate --force
+     php artisan migrate --force
+     php artisan db:seed --class=ProductionSeeder --force
+     php artisan installer:lock --email=you@example.com
+     # Create the real admin via tinker or a one-time INSTALLER_ENABLED setup.
+
+5) Never run DefaultAdminSeeder / DemoDatabaseSeeder on production.
+
+Guide: nnmfb-portal/docs/guides/cpanel-public-html-transfer-deploy.md
 EOF
-
-# Copy guides into package docs
-mkdir -p "$BUILD/docs/guides"
-cp -f "$ROOT/docs/guides/"*.md "$BUILD/docs/guides/" 2>/dev/null || true
 
 PKG_B="$OUT/nnmfb-transfer-portal-package-b-public-html-transfer.zip"
 rm -f "$PKG_B"
 (
   cd "$STAGE"
-  zip -rq "$PKG_B" transfer
+  zip -rq "$PKG_B" nnmfb-portal public_html README-DEPLOY.txt
 )
-
-# Also keep a clearly named alias copy for older references
 cp -f "$PKG_B" "$OUT/nnmfb-transfer-portal-package-b-shared-hosting.zip"
 
 echo "Built:"
-ls -lh "$PKG_A" "$PKG_B" "$OUT/nnmfb-transfer-portal-package-b-shared-hosting.zip"
-unzip -l "$PKG_B" | head -35
-echo "..."
-unzip -l "$PKG_B" | rg -n "transfer/\.htaccess|transfer/index\.php|transfer/vendor/autoload|transfer/css/app" | head -20
-unzip -l "$PKG_B" | tail -3
+ls -lh "$PKG_A" "$PKG_B"
+echo "--- Package B top entries ---"
+unzip -l "$PKG_B" | head -25
+echo "--- Must NOT contain app under public_html/transfer ---"
+if unzip -l "$PKG_B" | rg -q "public_html/transfer/(app|vendor|bootstrap|\.env)/"; then
+  echo "ERROR: sensitive paths inside public_html/transfer" >&2
+  exit 1
+fi
+unzip -l "$PKG_B" | rg "public_html/transfer/(index\.php|\.htaccess|css/|images/)|nnmfb-portal/artisan|nnmfb-portal/vendor/autoload" | head -20
+echo "OK layout"

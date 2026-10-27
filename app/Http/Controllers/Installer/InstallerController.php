@@ -4,37 +4,28 @@ namespace App\Http\Controllers\Installer;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\InstallerGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 
 class InstallerController extends Controller
 {
-    private function lockPath(): string
-    {
-        return storage_path('app/installed.lock');
-    }
+    public function __construct(private InstallerGuard $guard) {}
 
-    private function ensureNotInstalled(): void
+    public function welcome(Request $request)
     {
-        if (File::exists($this->lockPath())) {
-            abort(403, 'Installer is disabled. Application already installed.');
-        }
-    }
-
-    public function welcome()
-    {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         return view('installer.welcome');
     }
 
-    public function requirements()
+    public function requirements(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         $checks = [
             'PHP >= 8.2' => version_compare(PHP_VERSION, '8.2.0', '>='),
@@ -61,16 +52,27 @@ class InstallerController extends Controller
         return view('installer.requirements', compact('checks', 'structure'));
     }
 
-    public function showEnv()
+    public function showEnv(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
+        $this->guard->assertCanWriteEnv();
 
-        return view('installer.env');
+        return view('installer.env', [
+            'envExists' => File::exists(base_path('.env')),
+            'envConfigured' => $this->guard->envLooksConfigured(),
+        ]);
     }
 
     public function saveEnv(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
+        $this->guard->assertCanWriteEnv();
+
+        // Never rewrite an already-keyed production .env via the web installer.
+        if ($this->guard->envLooksConfigured()) {
+            return redirect()->route('installer.migrate')
+                ->with('status', 'Existing .env left unchanged. Continue with migrations.');
+        }
 
         $data = $request->validate([
             'app_url' => ['required', 'url'],
@@ -107,6 +109,7 @@ class InstallerController extends Controller
             'APP_NAME' => '"NNMFB Transfer Portal"',
             'APP_ENV' => 'production',
             'APP_DEBUG' => 'false',
+            'INSTALLER_ENABLED' => 'true',
             'APP_URL' => $data['app_url'],
             'DB_CONNECTION' => 'mysql',
             'DB_HOST' => $data['db_host'],
@@ -124,26 +127,30 @@ class InstallerController extends Controller
             'MAIL_FROM_NAME' => '"'.addcslashes($data['mail_from_name'], '"\\').'"',
         ]);
 
-        Artisan::call('key:generate', ['--force' => true]);
+        // Generate key only when missing.
+        $env = File::get(base_path('.env'));
+        if (! preg_match('/^APP_KEY=base64:.+/m', $env)) {
+            Artisan::call('key:generate', ['--force' => true]);
+        }
 
         return redirect()->route('installer.migrate');
     }
 
-    public function showMigrate()
+    public function showMigrate(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         return view('installer.migrate');
     }
 
     public function runMigrate(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         try {
             Artisan::call('migrate', ['--force' => true]);
-            Artisan::call('db:seed', ['--force' => true, '--class' => 'Database\\Seeders\\RoleSeeder']);
-            Artisan::call('db:seed', ['--force' => true, '--class' => 'Database\\Seeders\\BranchSeeder']);
+            // Reference data only — never demo users in installer path.
+            Artisan::call('db:seed', ['--force' => true, '--class' => 'Database\\Seeders\\ProductionSeeder']);
         } catch (\Throwable $e) {
             return back()->withErrors(['migrate' => 'Migration failed: '.$e->getMessage()]);
         }
@@ -151,38 +158,40 @@ class InstallerController extends Controller
         return redirect()->route('installer.admin');
     }
 
-    public function showAdmin()
+    public function showAdmin(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         return view('installer.admin');
     }
 
     public function saveAdmin(Request $request)
     {
-        $this->ensureNotInstalled();
+        $this->guard->assertCanRun($request);
 
         $data = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255'],
+            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user = User::query()->updateOrCreate(
-            ['email' => $data['email']],
-            [
-                'name' => $data['name'],
-                'password' => Hash::make($data['password']),
-                'is_active' => true,
-                'is_demo' => false,
-            ]
-        );
-        $user->syncRoles(['admin']);
+        if (User::query()->where('email', $data['email'])->exists()) {
+            throw ValidationException::withMessages([
+                'email' => 'This email already exists. Installer will not modify existing users.',
+            ]);
+        }
 
-        File::put($this->lockPath(), json_encode([
-            'installed_at' => now()->toIso8601String(),
-            'installed_by_email' => $user->email,
-        ], JSON_PRETTY_PRINT));
+        $user = User::query()->create([
+            'name' => $data['name'],
+            'email' => $data['email'],
+            'password' => Hash::make($data['password']),
+            'is_active' => true,
+            'is_demo' => false,
+        ]);
+        $user->assignRole('admin');
+
+        $this->guard->lock($user->email, 'web_installer');
+        $this->disableInstallerInEnv();
 
         return redirect()->route('installer.complete');
     }
@@ -190,7 +199,18 @@ class InstallerController extends Controller
     public function complete()
     {
         return view('installer.complete', [
-            'locked' => File::exists($this->lockPath()),
+            'locked' => $this->guard->isLocked(),
+        ]);
+    }
+
+    private function disableInstallerInEnv(): void
+    {
+        if (! File::exists(base_path('.env'))) {
+            return;
+        }
+
+        $this->writeEnv([
+            'INSTALLER_ENABLED' => 'false',
         ]);
     }
 

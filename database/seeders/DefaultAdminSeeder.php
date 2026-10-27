@@ -11,6 +11,12 @@ class DefaultAdminSeeder extends Seeder
 {
     public function run(): void
     {
+        if (app()->environment('production')) {
+            $this->command?->error('Refusing DefaultAdminSeeder (DEMO users) while APP_ENV=production.');
+
+            return;
+        }
+
         $hq = Branch::query()->where('code', 'HQ-ABJ')->first();
 
         $demos = [

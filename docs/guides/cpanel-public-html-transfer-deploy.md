@@ -1,148 +1,137 @@
-# Deploy to `public_html/transfer` (recommended for nigerianavymfb.com)
+# Deploy to `public_html/transfer` (app outside web root)
 
-This guide installs the portal at:
+Portal URL: **https://nigerianavymfb.com/transfer**
 
-**https://nigerianavymfb.com/transfer**
+ZIP: `docs/packages/nnmfb-transfer-portal-package-b-public-html-transfer.zip`
 
-Use ZIP: `docs/packages/nnmfb-transfer-portal-package-b-public-html-transfer.zip`
-
-You do **not** need to change the domain document root. Extract into `public_html/transfer`.
-
-## Target layout after extract
+## Required layout
 
 ```
-public_html/
-  (existing main website files…)
-  transfer/                 ← ZIP folder `transfer/` extracts here
-    index.php               ← front controller (web entry)
-    .htaccess               ← RewriteBase /transfer/ + deny sensitive paths
-    css/  images/  favicon.png
-    app/  bootstrap/  config/  database/  resources/  routes/
-    storage/  vendor/  artisan  .env.example
-    docs/guides/…
+/home/USER/
+  nnmfb-portal/                 ← FULL Laravel app (NOT under public_html)
+    app/ bootstrap/ config/ database/ resources/ routes/
+    storage/ vendor/ artisan .env .env.example
+  public_html/
+    (existing main website…)
+    transfer/                   ← PUBLIC ENTRY ONLY
+      index.php                 ← points at ~/nnmfb-portal
+      .htaccess                 ← RewriteBase /transfer/
+      css/  images/  favicon.png
 ```
 
-Sensitive paths (`app`, `vendor`, `.env`, etc.) are blocked by `.htaccess` (`403`). Only `index.php`, static assets, and routed URLs should be reachable.
+Do **not** place `vendor/`, `app/`, or `.env` inside `public_html/transfer/`.
 
-## Step-by-step
+## Steps
 
-### 1. Create MySQL database
+### 1. Database
 
-In cPanel → MySQL Databases: create DB + user, grant ALL, note host/name/user/password.
+Create MySQL DB + user in cPanel.
 
-### 2. Upload and extract
+### 2. Extract Package B
 
-1. Upload `nnmfb-transfer-portal-package-b-public-html-transfer.zip` via File Manager or FTP.
-2. Extract so the inner folder is exactly `public_html/transfer/` (you should see `public_html/transfer/index.php`).
-3. If File Manager extracted an extra nesting level (`public_html/transfer/transfer/`), move contents up one level.
+Upload the ZIP and extract so you get both folders:
 
-### 3. Create `.env`
+- `nnmfb-portal/` → move to `/home/USER/nnmfb-portal/`
+- `public_html/transfer/` → `/home/USER/public_html/transfer/`
 
-In `public_html/transfer/`, copy `.env.example` → `.env` and set:
+Confirm `public_html/transfer/index.php` resolves `dirname(__DIR__, 2).'/nnmfb-portal'` (i.e. sibling of `public_html`). If your account layout differs, edit `$appRoot` in that file or set env `NNMFB_APP_ROOT`.
+
+### 3. Configure `.env` in `~/nnmfb-portal`
 
 ```env
-APP_NAME="NNMFB Transfer Portal"
 APP_ENV=production
 APP_DEBUG=false
 APP_URL=https://nigerianavymfb.com/transfer
-APP_KEY=
+INSTALLER_ENABLED=false
+INSTALLER_SETUP_SECRET=
+SEED_DEMO_DATA=false
 
 DB_CONNECTION=mysql
 DB_HOST=localhost
-DB_PORT=3306
-DB_DATABASE=YOUR_DB_NAME
-DB_USERNAME=YOUR_DB_USER
-DB_PASSWORD=YOUR_DB_PASSWORD
-
-SESSION_DRIVER=database
-SESSION_LIFETIME=120
-SESSION_SECURE_COOKIE=true
-QUEUE_CONNECTION=database
-CACHE_STORE=database
+DB_DATABASE=...
+DB_USERNAME=...
+DB_PASSWORD=...
 
 MAIL_MAILER=smtp
 MAIL_HOST=smtp.zoho.com
 MAIL_PORT=587
-MAIL_USERNAME=your-zoho-mailbox@domain
-MAIL_PASSWORD=your-zoho-app-password
+MAIL_USERNAME=...
+MAIL_PASSWORD=...
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS=noreply@nigerianavymfb.com
 MAIL_FROM_NAME="NNMFB Transfer Portal"
+SESSION_SECURE_COOKIE=true
 ```
-
-Generate `APP_KEY` either:
-
-- SSH: `cd ~/public_html/transfer && php artisan key:generate --force`
-- Or paste a key from a trusted local `php artisan key:generate --show`
 
 ### 4. Permissions
 
-Make writable (typically 0755/0775 depending on host):
+`storage/` and `bootstrap/cache/` writable under `~/nnmfb-portal`.
 
-- `storage/` (and subfolders)
-- `bootstrap/cache/`
-
-### 5. Migrations / seed / installer
-
-**Option A — Web installer (no SSH):** visit  
-https://nigerianavymfb.com/transfer/install  
-
-Complete requirements → DB/SMTP (if not already in `.env`) → migrate → create admin → finish. Confirm `storage/app/installed.lock` exists afterward.
-
-**Option B — SSH:**
+### 5. SSH deploy (recommended)
 
 ```bash
-cd ~/public_html/transfer
+cd ~/nnmfb-portal
+php artisan key:generate --force
 php artisan migrate --force
-php artisan db:seed --force
-# optional: remove DEMO users or change passwords immediately
+php artisan db:seed --class=ProductionSeeder --force
+php artisan installer:lock --email=you@your-domain.com
 ```
 
-Then create `storage/app/installed.lock` (empty JSON is fine) so `/install` stays locked.
+`ProductionSeeder` loads **roles + branches only** — **no DEMO users**.
 
-### 6. Health check
-
-1. Open https://nigerianavymfb.com/transfer/login — branded NNMFB login must load.
-2. Sign in with your admin (or DEMO only on non-production).
-3. Submit a test ticket; confirm dashboard.
-4. Request **Forgot password?** — confirm Zoho delivery (or check mail logs).
-5. Confirm https://nigerianavymfb.com/transfer/app returns **403/denied** (not source code).
-
-### 7. Disable installer
-
-After success, installer writes `storage/app/installed.lock`. Keep it. Do not leave `APP_DEBUG=true`.
-
-### 8. Queue (email delivery)
-
-cPanel Cron every minute:
+Create the real administrator with tinker (example):
 
 ```bash
-cd /home/USER/public_html/transfer && php artisan queue:work --stop-when-empty >/dev/null 2>&1
+php artisan tinker
 ```
 
-### 9. Link from the main website
+```php
+$u = \App\Models\User::create([
+  'name' => 'Portal Admin',
+  'email' => 'admin@your-domain.com',
+  'password' => bcrypt('choose-a-strong-password'),
+  'is_active' => true,
+  'is_demo' => false,
+]);
+$u->assignRole('admin');
+```
 
-Add a menu item on https://nigerianavymfb.com pointing to `/transfer` — see `main-site-portal-link.md`.
+### 6. Optional web installer (gated)
 
-## Password reset (how-to)
+Only if SSH is unavailable:
 
-1. Login page → **Forgot password?**
-2. Enter work email (DEMO accounts work: e.g. `submitter@nnmfb.demo`).
-3. Open the branded reset email (Zoho SMTP in production; `MAIL_MAILER=log` writes to `storage/logs` locally).
-4. Choose a new password (token expires in 60 minutes; requests throttled).
+1. Set `INSTALLER_ENABLED=true` and a long random `INSTALLER_SETUP_SECRET` in `.env`
+2. Visit `https://nigerianavymfb.com/transfer/install?setup_secret=YOUR_SECRET`
+3. Complete setup (creates a **new** admin only; will not modify existing users)
+4. Confirm lock file exists; set `INSTALLER_ENABLED=false`
+5. Or run `php artisan installer:lock`
 
-## Troubleshooting
+Installer is **off by default** and refuses to run when users already exist (and auto-locks).
 
-| Symptom | Check |
-|---------|--------|
-| 404 on /transfer/login | `.htaccess` present? `RewriteBase /transfer/`? AllowOverride On? |
-| CSS/logo missing | `APP_URL` must include `/transfer`; hard-refresh |
-| 500 after extract | `storage`/`bootstrap/cache` permissions; `APP_KEY` set |
-| Installer loops | DB credentials; PHP 8.2+; `vendor/` present |
-| Emails missing | Zoho SMTP creds; cron queue worker |
+### 7. Health check
 
-## Security reminders
+1. https://nigerianavymfb.com/transfer/login loads  
+2. Sign in with your real admin  
+3. https://nigerianavymfb.com/transfer/install returns 403  
+4. Confirm `~/nnmfb-portal/.env` is not web-reachable  
 
-- Change or delete all DEMO users before production use.
-- Never commit real Zoho passwords.
-- This deploy keeps Laravel files under `transfer/` but blocks them via `.htaccess` — prefer also moving the app above `public_html` if your host allows (see alternate guide).
+### 8. Queue cron
+
+```bash
+cd /home/USER/nnmfb-portal && php artisan queue:work --stop-when-empty >/dev/null 2>&1
+```
+
+### 9. Main site link
+
+See `main-site-portal-link.md` → `https://nigerianavymfb.com/transfer`
+
+## DEMO data
+
+Never seed DEMO accounts on production. Local-only:
+
+```bash
+# local / non-production only
+php artisan db:seed --class=DemoDatabaseSeeder
+```
+
+DEMO passwords are documented only in the **Windows local install** guide — change them before any shared use.

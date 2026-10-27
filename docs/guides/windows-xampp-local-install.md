@@ -51,13 +51,17 @@ MAIL_FROM_NAME="NNMFB Transfer Portal"
 
 For Zoho SMTP later, set `MAIL_MAILER=smtp` and your Zoho mailbox credentials. Never commit real passwords.
 
-6. Migrate and seed:
+6. Migrate and seed (**local DEMO only** — never use these seeders on production):
 
 ```bat
 php artisan migrate --seed
+php artisan installer:lock
 php artisan storage:link
 php artisan serve
 ```
+
+`migrate --seed` on local (`APP_ENV=local`, `SEED_DEMO_DATA=true`) loads roles/branches **and** DEMO users.  
+On production use `db:seed --class=ProductionSeeder` only.
 
 7. Open http://127.0.0.1:8000 and sign in with a **DEMO** account below.
 
