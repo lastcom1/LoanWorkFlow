@@ -2,8 +2,11 @@
 
 | File | Purpose |
 |------|---------|
-| `nnmfb-transfer-portal-package-a-source.zip` | Full development source (no vendor) |
-| `nnmfb-transfer-portal-package-b-public-html-transfer.zip` | Production: `nnmfb-portal/` (app) + `public_html/transfer/` (public entry only) |
-| `nnmfb-transfer-portal-package-b-shared-hosting.zip` | Alias of the Package B build |
+| `nnmfb-transfer-portal-package-a-source.zip` | Dev source (no vendor) |
+| `nnmfb-transfer-portal-package-b-public-html-transfer.zip` | **Go-live Package B** — `nnmfb-portal/` + `public_html-transfer/` (+ vendor) |
+| `nnmfb-transfer-portal-golive-package-b.zip` | Alias of Package B |
+| `nnmfb-transfer-portal-package-b-shared-hosting.zip` | Alias of Package B |
 
-Package B keeps `vendor/`, `app/`, and `.env` **outside** `public_html`.
+Extract: move `nnmfb-portal/` to `~/nnmfb-portal`; move **contents** of `public_html-transfer/` into `public_html/transfer/`.
+
+Go-live guide: `../guides/cpanel-go-live.md` (+ PDF).
