@@ -92,21 +92,31 @@ class TicketController extends Controller
             $refNorm
         );
 
+        // Submitters get a minimal payload (no other staff names, officer, branch, or deep links).
+        $isPrivileged = $request->user()->hasAnyRole(['admin', 'supervisor', 'md_ceo', 'auditor', 'ft_officer']);
+
         return response()->json([
             'has_duplicates' => $matches->isNotEmpty(),
-            'matches' => $matches->map(fn (TransferTicket $t) => [
-                'id' => $t->id,
-                'ticket_ref' => $t->ticket_ref,
-                'masked_account' => $t->maskedAccount(),
-                'amount' => $t->formattedAmount(),
-                'status' => $t->statusLabel(),
-                'is_open' => $t->isOpen(),
-                'branch' => $t->branch?->name,
-                'submitter' => $t->submitter?->name,
-                'assigned_officer' => $t->assignedOfficer?->name,
-                'submitted_at' => optional($t->submitted_at)->toDayDateTimeString(),
-                'url' => route('tickets.show', $t),
-            ]),
+            'matches' => $matches->map(function (TransferTicket $t) use ($isPrivileged) {
+                $row = [
+                    'ticket_ref' => $t->ticket_ref,
+                    'masked_account' => $t->maskedAccount(),
+                    'amount' => $t->formattedAmount(),
+                    'status' => $t->statusLabel(),
+                    'is_open' => $t->isOpen(),
+                    'submitted_at' => optional($t->submitted_at)->toDayDateTimeString(),
+                ];
+
+                if ($isPrivileged) {
+                    $row['id'] = $t->id;
+                    $row['branch'] = $t->branch?->name;
+                    $row['submitter'] = $t->submitter?->name;
+                    $row['assigned_officer'] = $t->assignedOfficer?->name;
+                    $row['url'] = route('tickets.show', $t);
+                }
+
+                return $row;
+            }),
             'message' => $matches->isNotEmpty()
                 ? 'A similar ticket may already exist. Please review before submitting. Matching is based on '
                     .($data['category'] === TransferTicket::CATEGORY_REVERSAL
@@ -147,7 +157,6 @@ class TicketController extends Controller
             'confirmation_accepted' => ['accepted'],
             'acknowledge_duplicate' => ['nullable', 'boolean'],
             'duplicate_override_reason' => ['nullable', 'string', 'max:1000'],
-            'save_as_draft' => ['nullable', 'boolean'],
             'attachments.*' => ['nullable', 'file', 'max:5120', 'mimes:pdf,jpg,jpeg,png,doc,docx,xls,xlsx'],
         ]);
 
@@ -273,16 +282,20 @@ class TicketController extends Controller
             'resolution_notes' => ['required', 'string', 'max:5000'],
         ]);
 
-        $this->tickets->transition(
-            $ticket,
-            $request->user(),
-            TransferTicket::STATUS_COMPLETED,
-            $data['resolution_notes'],
-            [
-                'processing_outcome' => $data['processing_outcome'],
-                'resolution_notes' => $data['resolution_notes'],
-            ]
-        );
+        try {
+            $this->tickets->transition(
+                $ticket,
+                $request->user(),
+                TransferTicket::STATUS_COMPLETED,
+                $data['resolution_notes'],
+                [
+                    'processing_outcome' => $data['processing_outcome'],
+                    'resolution_notes' => $data['resolution_notes'],
+                ]
+            );
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['processing_outcome' => $e->getMessage()]);
+        }
 
         return back()->with('success', 'Ticket marked completed. Note: completion records portal processing outcome only — it is not proof of core-banking execution.');
     }
@@ -296,12 +309,16 @@ class TicketController extends Controller
             'confirm_reject' => ['accepted'],
         ]);
 
-        $this->tickets->transition(
-            $ticket,
-            $request->user(),
-            TransferTicket::STATUS_REJECTED,
-            $data['rejection_reason']
-        );
+        try {
+            $this->tickets->transition(
+                $ticket,
+                $request->user(),
+                TransferTicket::STATUS_REJECTED,
+                $data['rejection_reason']
+            );
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['rejection_reason' => $e->getMessage()]);
+        }
 
         return back()->with('success', 'Ticket rejected. The record is retained for search and audit.');
     }
@@ -360,29 +377,11 @@ class TicketController extends Controller
             return back()->withErrors(['officer_id' => 'Selected user is not an active FT Officer.']);
         }
 
-        $from = $ticket->assigned_officer_id;
-        $ticket->forceFill([
-            'assigned_officer_id' => $officer->id,
-            'status' => TransferTicket::STATUS_CLAIMED,
-            'claimed_at' => now(),
-        ])->save();
-
-        $ticket->assignments()->create([
-            'officer_id' => $officer->id,
-            'assigned_by' => $request->user()->id,
-            'action' => 'reassigned',
-            'notes' => $data['reason'],
-            'assigned_at' => now(),
-        ]);
-
-        app(\App\Services\AuditService::class)->log(
-            'ticket_reassigned',
-            $request->user(),
-            $ticket,
-            $ticket,
-            ['assigned_officer_id' => $from],
-            ['assigned_officer_id' => $officer->id, 'reason' => $data['reason']]
-        );
+        try {
+            $this->tickets->reassign($ticket, $request->user(), $officer, $data['reason']);
+        } catch (RuntimeException $e) {
+            return back()->withErrors(['officer_id' => $e->getMessage()]);
+        }
 
         return back()->with('success', 'Ticket reassigned.');
     }

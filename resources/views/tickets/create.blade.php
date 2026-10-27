@@ -154,14 +154,39 @@
     }
     warning.style.display = 'block';
     message.textContent = data.message || '';
-    list.innerHTML = data.matches.map(m => `
-      <div style="padding:0.45rem 0;border-bottom:1px solid #f0d7a0">
-        <strong><a href="${m.url}">${m.ticket_ref}</a></strong>
-        — ${m.masked_account} · ${m.amount} · ${m.status}
-        ${m.is_open ? '(active)' : '(completed/closed)'}
-        <div class="muted">${m.branch || ''} · ${m.submitter || ''} · Officer: ${m.assigned_officer || 'unassigned'}</div>
-      </div>
-    `).join('');
+    list.replaceChildren();
+    (data.matches || []).forEach((m) => {
+      const row = document.createElement('div');
+      row.style.cssText = 'padding:0.45rem 0;border-bottom:1px solid #f0d7a0';
+
+      const strong = document.createElement('strong');
+      if (m.url) {
+        const a = document.createElement('a');
+        a.href = m.url;
+        a.textContent = m.ticket_ref || '';
+        strong.appendChild(a);
+      } else {
+        strong.textContent = m.ticket_ref || '';
+      }
+      row.appendChild(strong);
+
+      const meta = document.createTextNode(
+        ' — ' + (m.masked_account || '') + ' · ' + (m.amount || '') + ' · ' + (m.status || '') +
+        (m.is_open ? ' (active)' : ' (completed/closed)')
+      );
+      row.appendChild(meta);
+
+      // Privileged extras only — still rendered via textContent (XSS-safe).
+      if (m.branch || m.submitter || m.assigned_officer) {
+        const detail = document.createElement('div');
+        detail.className = 'muted';
+        detail.textContent = [m.branch, m.submitter, m.assigned_officer ? ('Officer: ' + m.assigned_officer) : null]
+          .filter(Boolean).join(' · ');
+        row.appendChild(detail);
+      }
+
+      list.appendChild(row);
+    });
     return true;
   }
 

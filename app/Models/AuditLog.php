@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use RuntimeException;
 
 class AuditLog extends Model
 {
@@ -22,6 +23,17 @@ class AuditLog extends Model
             'meta' => 'array',
             'created_at' => 'datetime',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::updating(function () {
+            throw new RuntimeException('Audit logs are immutable and cannot be updated through the application.');
+        });
+
+        static::deleting(function () {
+            throw new RuntimeException('Audit logs are immutable and cannot be deleted through the application.');
+        });
     }
 
     public function actor(): BelongsTo

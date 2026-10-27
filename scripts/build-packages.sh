@@ -67,13 +67,8 @@ NNMFB Transfer Portal — Package B layout
 2) Edit public_html/transfer/index.php if your home path differs (default expects
    dirname(public_html)/nnmfb-portal i.e. ~/nnmfb-portal).
 
-3) Copy nnmfb-portal/.env.example → .env, set:
-     APP_ENV=production
-     APP_DEBUG=false
-     APP_URL=https://nigerianavymfb.com/transfer
-     INSTALLER_ENABLED=false
-     SEED_DEMO_DATA=false
-     DB_* and Zoho SMTP
+3) Copy nnmfb-portal/.env.production.example → .env (NOT .env.example), set DB_* and Zoho SMTP.
+     Safe defaults already include production/debug/installer/demo flags.
 
 4) SSH (recommended):
      cd ~/nnmfb-portal

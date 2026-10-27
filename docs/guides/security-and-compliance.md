@@ -11,9 +11,25 @@
 - Account masking in lists and email templates  
 - Attachment type/size validation; authorized downloads only  
 - IDOR checks (submitters see own tickets; officers act on assigned)  
-- Immutable audit log (no UI edit/delete)  
-- Secrets via `.env`; production `APP_DEBUG=false` guidance  
-- Installer lock file after successful shared-hosting install  
+- Immutable audit log (no UI edit/delete; Eloquent model refuses `update`/`delete`)  
+- Secrets via `.env`; production uses `.env.production.example` (not local `.env.example`)  
+- Installer off by default + setup secret; lock after every deploy path  
+
+## Audit log database hardening
+
+Application code cannot update or delete `audit_logs` rows (model boot guards throw).
+
+Also restrict the **MySQL application user** so even compromised app credentials cannot erase the trail:
+
+```sql
+-- After migrations, as a privileged DBA account:
+REVOKE UPDATE, DELETE ON your_db.audit_logs FROM 'portal_app'@'localhost';
+-- Keep SELECT + INSERT for the app user on audit_logs.
+GRANT SELECT, INSERT ON your_db.audit_logs TO 'portal_app'@'localhost';
+FLUSH PRIVILEGES;
+```
+
+Document the restricted grants in your runbook; do not grant `ALL PRIVILEGES` on production.
 
 ## Duplicate matching limitations
 

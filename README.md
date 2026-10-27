@@ -18,10 +18,13 @@ cp .env.example .env
 php artisan key:generate
 touch database/database.sqlite
 php artisan migrate --seed
+php artisan installer:lock
 php artisan serve
 ```
 
-Open http://127.0.0.1:8000 — DEMO logins are in the install guides under the project store docs.
+Open http://127.0.0.1:8000 — DEMO logins (local only) are in `docs/guides/windows-xampp-local-install.md`.
+
+Production servers: copy **`.env.production.example`** → `.env` (not `.env.example`), seed with `ProductionSeeder`, then `php artisan installer:lock`.
 
 ## Core invariants
 

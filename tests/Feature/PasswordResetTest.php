@@ -70,15 +70,29 @@ class PasswordResetTest extends TestCase
         ]));
     }
 
-    public function test_inactive_user_cannot_request_reset(): void
+    public function test_forgot_password_always_returns_generic_status(): void
     {
-        $user = User::factory()->create([
+        Notification::fake();
+
+        // Unknown email
+        $this->from(route('password.request'))
+            ->post(route('password.email'), ['email' => 'nobody@nnmfb.example'])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+
+        // Inactive account — same generic status (no existence / eligibility leak)
+        $inactive = User::factory()->create([
             'email' => 'inactive@nnmfb.demo',
             'is_active' => false,
         ]);
 
         $this->from(route('password.request'))
-            ->post(route('password.email'), ['email' => $user->email])
-            ->assertSessionHasErrors('email');
+            ->post(route('password.email'), ['email' => $inactive->email])
+            ->assertRedirect()
+            ->assertSessionHas('status')
+            ->assertSessionHasNoErrors();
+
+        Notification::assertNothingSent();
     }
 }

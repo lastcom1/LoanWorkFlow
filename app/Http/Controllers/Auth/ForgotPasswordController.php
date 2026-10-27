@@ -24,18 +24,14 @@ class ForgotPasswordController extends Controller
         ]);
 
         $email = strtolower(trim($request->string('email')->toString()));
-
         $user = \App\Models\User::query()->where('email', $email)->first();
 
-        if ($user && (! $user->is_active || $user->isLocked())) {
-            throw ValidationException::withMessages([
-                'email' => 'This account cannot reset a password right now. Contact an administrator.',
-            ]);
-        }
+        $generic = 'If that email is registered and eligible, a password reset link has been sent. Check your inbox (and spam). The link expires in 60 minutes.';
 
-        $status = Password::broker()->sendResetLink(['email' => $email]);
+        // Only attempt send for active, unlocked accounts — never reveal why.
+        if ($user && $user->is_active && ! $user->isLocked()) {
+            $status = Password::broker()->sendResetLink(['email' => $email]);
 
-        if ($user) {
             $this->audit->log(
                 $status === Password::RESET_LINK_SENT ? 'password_reset_requested' : 'password_reset_request_failed',
                 $user,
@@ -45,22 +41,18 @@ class ForgotPasswordController extends Controller
                 null,
                 ['status' => $status]
             );
-        }
 
-        if ($status !== Password::RESET_LINK_SENT) {
-            // Generic message to avoid account enumeration where possible,
-            // but still surface throttle clearly.
             if ($status === Password::RESET_THROTTLED) {
                 throw ValidationException::withMessages([
                     'email' => 'Please wait before requesting another reset link.',
                 ]);
             }
-
-            throw ValidationException::withMessages([
-                'email' => __($status),
+        } elseif ($user) {
+            $this->audit->log('password_reset_request_skipped', $user, $user, null, null, null, [
+                'reason' => 'inactive_or_locked',
             ]);
         }
 
-        return back()->with('status', 'If that email is registered, a password reset link has been sent. Check your inbox (and spam). The link expires in 60 minutes.');
+        return back()->with('status', $generic);
     }
 }

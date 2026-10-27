@@ -53,9 +53,8 @@ class TicketService
         }
 
         $ticket = DB::transaction(function () use ($submitter, $data, $files, $accountNorm, $amountNorm, $refNorm, $matches) {
-            $status = ($data['save_as_draft'] ?? false)
-                ? TransferTicket::STATUS_DRAFT
-                : TransferTicket::STATUS_AVAILABLE;
+            // Drafts removed: tickets are submitted as available immediately.
+            $status = TransferTicket::STATUS_AVAILABLE;
 
             $ticket = TransferTicket::query()->create([
                 'ticket_ref' => $this->generateTicketRef(),
@@ -81,7 +80,7 @@ class TicketService
                 'is_duplicate_flagged' => $matches->isNotEmpty(),
                 'duplicate_override' => (bool) ($data['acknowledge_duplicate'] ?? false),
                 'duplicate_override_reason' => $data['duplicate_override_reason'] ?? null,
-                'submitted_at' => $status === TransferTicket::STATUS_DRAFT ? null : now(),
+                'submitted_at' => now(),
             ]);
 
             TicketStatusHistory::query()->create([
@@ -89,7 +88,7 @@ class TicketService
                 'changed_by' => $submitter->id,
                 'from_status' => null,
                 'to_status' => $status,
-                'reason' => $status === TransferTicket::STATUS_DRAFT ? 'Draft saved' : 'Ticket submitted',
+                'reason' => 'Ticket submitted',
             ]);
 
             foreach ($files as $file) {
@@ -112,18 +111,53 @@ class TicketService
             return $ticket->fresh(['branch', 'submitter', 'duplicateMatches.matchedTicket']);
         });
 
-        if ($ticket->status !== TransferTicket::STATUS_DRAFT) {
-            try {
-                $this->notifications->ticketSubmitted($ticket);
-            } catch (\Throwable $e) {
-                $this->audit->log('notification_failed', $submitter, $ticket, $ticket, null, null, [
-                    'context' => 'ticket_submitted',
-                    'error' => $e->getMessage(),
-                ]);
-            }
+        try {
+            $this->notifications->ticketSubmitted($ticket);
+        } catch (\Throwable $e) {
+            $this->audit->log('notification_failed', $submitter, $ticket, $ticket, null, null, [
+                'context' => 'ticket_submitted',
+                'error' => $e->getMessage(),
+            ]);
         }
 
         return $ticket;
+    }
+
+    /**
+     * Allowed status transitions after row lock.
+     * Claimed → completed is intentionally disallowed (must start processing first).
+     *
+     * @return array<string, list<string>>
+     */
+    public function allowedTransitions(): array
+    {
+        return [
+            TransferTicket::STATUS_CLAIMED => [
+                TransferTicket::STATUS_IN_PROGRESS,
+                TransferTicket::STATUS_INFO_REQUIRED,
+                TransferTicket::STATUS_REJECTED,
+            ],
+            TransferTicket::STATUS_IN_PROGRESS => [
+                TransferTicket::STATUS_INFO_REQUIRED,
+                TransferTicket::STATUS_COMPLETED,
+                TransferTicket::STATUS_REJECTED,
+            ],
+            TransferTicket::STATUS_INFO_REQUIRED => [
+                TransferTicket::STATUS_IN_PROGRESS,
+                TransferTicket::STATUS_COMPLETED,
+                TransferTicket::STATUS_REJECTED,
+            ],
+        ];
+    }
+
+    public function assertTransitionAllowed(string $from, string $to): void
+    {
+        $allowed = $this->allowedTransitions()[$from] ?? [];
+        if (! in_array($to, $allowed, true)) {
+            throw new RuntimeException(
+                "Invalid status transition from {$from} to {$to}."
+            );
+        }
     }
 
     public function transition(TransferTicket $ticket, User $actor, string $toStatus, ?string $reason = null, array $extra = []): TransferTicket
@@ -131,6 +165,13 @@ class TicketService
         return DB::transaction(function () use ($ticket, $actor, $toStatus, $reason, $extra) {
             $locked = TransferTicket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
             $from = $locked->status;
+
+            // Re-check after lock so concurrent complete+reject cannot both succeed.
+            if (in_array($from, [TransferTicket::STATUS_COMPLETED, TransferTicket::STATUS_REJECTED], true)) {
+                throw new RuntimeException('Ticket is already closed and cannot change status.');
+            }
+
+            $this->assertTransitionAllowed($from, $toStatus);
 
             $payload = array_merge(['status' => $toStatus], $extra);
             if ($toStatus === TransferTicket::STATUS_IN_PROGRESS && ! $locked->started_at) {
@@ -179,6 +220,53 @@ class TicketService
             }
 
             return $fresh;
+        });
+    }
+
+    public function reassign(TransferTicket $ticket, User $actor, User $officer, string $reason): TransferTicket
+    {
+        return DB::transaction(function () use ($ticket, $actor, $officer, $reason) {
+            $locked = TransferTicket::query()->whereKey($ticket->id)->lockForUpdate()->firstOrFail();
+
+            if (in_array($locked->status, [TransferTicket::STATUS_COMPLETED, TransferTicket::STATUS_REJECTED], true)) {
+                throw new RuntimeException('Cannot reassign a completed or rejected ticket.');
+            }
+
+            $fromOfficer = $locked->assigned_officer_id;
+            $fromStatus = $locked->status;
+
+            $locked->forceFill([
+                'assigned_officer_id' => $officer->id,
+                'status' => TransferTicket::STATUS_CLAIMED,
+                'claimed_at' => now(),
+            ])->save();
+
+            $locked->assignments()->create([
+                'officer_id' => $officer->id,
+                'assigned_by' => $actor->id,
+                'action' => 'reassigned',
+                'notes' => $reason,
+                'assigned_at' => now(),
+            ]);
+
+            TicketStatusHistory::query()->create([
+                'ticket_id' => $locked->id,
+                'changed_by' => $actor->id,
+                'from_status' => $fromStatus,
+                'to_status' => TransferTicket::STATUS_CLAIMED,
+                'reason' => 'Reassigned: '.$reason,
+            ]);
+
+            $this->audit->log(
+                'ticket_reassigned',
+                $actor,
+                $locked,
+                $locked,
+                ['assigned_officer_id' => $fromOfficer, 'status' => $fromStatus],
+                ['assigned_officer_id' => $officer->id, 'status' => TransferTicket::STATUS_CLAIMED, 'reason' => $reason]
+            );
+
+            return $locked->fresh(['assignedOfficer', 'submitter', 'branch']);
         });
     }
 
