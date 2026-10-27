@@ -5,7 +5,7 @@
 ## What you need
 
 - Windows 10/11
-- [XAMPP](https://www.apachefriends.org/) with PHP 8.2+ and MySQL/MariaDB
+- [XAMPP](https://www.apachefriends.org/) with PHP **8.3+** and MySQL/MariaDB
 - [Composer](https://getcomposer.org/download/) for Windows
 - Package A ZIP (`nnmfb-transfer-portal-package-a-source.zip`)
 

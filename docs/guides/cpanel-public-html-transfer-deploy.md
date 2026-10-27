@@ -15,7 +15,7 @@ ZIP: `docs/packages/nnmfb-transfer-portal-package-b-public-html-transfer.zip`
     (existing main website…)
     transfer/                   ← PUBLIC ENTRY ONLY
       index.php                 ← points at ~/nnmfb-portal
-      .htaccess                 ← RewriteBase /transfer/
+      .htaccess                 ← RewriteBase /transfer/ (use RewriteBase / if subdomain is docroot)
       css/  images/  favicon.png
 ```
 

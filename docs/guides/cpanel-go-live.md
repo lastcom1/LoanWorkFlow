@@ -47,27 +47,30 @@ Never put `vendor/`, `app/`, `storage/`, or `.env` inside `public_html/transfer/
 
 ## 1. PHP version and extensions (cPanel)
 
-1. cPanel → **Select PHP Version** / **MultiPHP Manager**.
-2. Choose **PHP 8.2 or 8.3** for the domain (or the account).
-3. Enable extensions (names vary slightly by host):
+**Required: PHP 8.3+.** Locked dependencies (`composer.lock`, including `spatie/laravel-permission`) need PHP `^8.3`. PHP 8.2 will fail `composer install` / platform checks.
 
-| Required | Typical cPanel name |
-|----------|---------------------|
+1. cPanel → **Select PHP Version** / **MultiPHP Manager** (or **CloudLinux Selector** / **Select PHP Version** on CloudLinux hosts).
+2. Choose **PHP 8.3** (or newer 8.x) for the domain/account.
+   - CloudLinux: select **`alt-php83`** (not `alt-php82`).
+3. Enable extensions (names vary slightly by host; on CloudLinux enable these under `alt-php83`):
+
+| Required | Typical cPanel / CloudLinux name |
+|----------|----------------------------------|
 | PDO MySQL | `pdo_mysql` / `mysqli` |
 | Mbstring | `mbstring` |
+| Fileinfo | `fileinfo` |
+| BCMath | `bcmath` |
+| Intl | `intl` |
+| Zip | `zip` |
 | OpenSSL | `openssl` |
 | Tokenizer | `tokenizer` |
 | XML | `xml` |
 | Ctype | `ctype` |
 | JSON | `json` (usually built-in) |
-| BCMath | `bcmath` |
-| Fileinfo | `fileinfo` |
-| Tokenizer | `tokenizer` |
 | Curl | `curl` |
-| Zip | `zip` (helpful) |
 | GD or Imagick | `gd` (optional; logo already PNG) |
 
-4. Save. Confirm with cPanel → **PHP Info** if available.
+4. Save. Confirm with cPanel → **PHP Info** (or `php -v` / `php -m` in Terminal) that the site is on **8.3.x** with the extensions above.
 
 ---
 
@@ -100,6 +103,17 @@ README-DEPLOY.txt
 ```
 
 7. Delete the empty `public_html-transfer/` folder and the ZIP from the server when done.
+
+### `.htaccess` RewriteBase (path vs subdomain)
+
+| Deploy style | Public files live at | `RewriteBase` |
+|--------------|----------------------|---------------|
+| Path under main site (default Package B) | `public_html/transfer/` | `/transfer/` |
+| Subdomain as document root | subdomain `public_html/` (site root) | `/` |
+
+Package B ships `RewriteBase /transfer/`. If you put the portal at a **subdomain document root** (e.g. `https://transfer.example.com/`), replace `.htaccess` with `deploy/subdomain-docroot/.htaccess` from the repo (or change the line to `RewriteBase /`). Leaving `/transfer/` on a subdomain root breaks routing.
+
+Also set `APP_URL` to match: path deploy → `https://<domain>/transfer`; subdomain root → `https://transfer.<domain>` (no `/transfer` suffix).
 
 ---
 

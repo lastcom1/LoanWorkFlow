@@ -54,7 +54,8 @@ return new class extends Migration
             $table->softDeletes();
 
             $table->index(['category', 'status']);
-            $table->index(['customer_account_normalized', 'amount_normalized']);
+            // Named: MySQL identifier limit is 64 chars; auto name would be 68.
+            $table->index(['customer_account_normalized', 'amount_normalized'], 'tt_account_amount_idx');
             $table->index(['assigned_officer_id', 'status']);
         });
     }

@@ -1,5 +1,9 @@
 # Public entry only — place in public_html/transfer/
 # Application code must NOT live here; keep it in ~/nnmfb-portal (outside public_html).
+#
+# Path-based URL (https://domain/transfer): RewriteBase /transfer/
+# Subdomain at document root (https://transfer.domain/): use deploy/subdomain-docroot/.htaccess
+# with RewriteBase / instead of this file.
 
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>

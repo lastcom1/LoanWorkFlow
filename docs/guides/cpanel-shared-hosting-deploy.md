@@ -2,7 +2,11 @@
 
 **Required layout for nigerianavymfb.com:** app outside the web root + public entry under `/transfer`.
 
-→ Full steps: **[cpanel-public-html-transfer-deploy.md](./cpanel-public-html-transfer-deploy.md)**  
+**PHP:** **8.3+** required (`composer.lock` / Spatie). On CloudLinux use **`alt-php83`** with `pdo_mysql`, `mbstring`, `fileinfo`, `bcmath`, `intl`, `zip`.
+
+**RewriteBase:** path deploy `public_html/transfer/` → `/transfer/`; subdomain at document root → `/` (see `deploy/subdomain-docroot/.htaccess`).
+
+→ Full steps: **[cpanel-go-live.md](./cpanel-go-live.md)** / **[cpanel-public-html-transfer-deploy.md](./cpanel-public-html-transfer-deploy.md)**  
 → ZIP: `nnmfb-transfer-portal-package-b-public-html-transfer.zip`
 
 ```
