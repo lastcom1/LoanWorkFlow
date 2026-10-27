@@ -37,10 +37,12 @@
             <button class="btn btn-primary" style="width:100%" type="submit">Sign in securely</button>
         </form>
 
-        <div class="demo-note">
-            <strong>DEMO credentials</strong> are listed in the local install guide.
-            Change all passwords before any production use. Never enter PINs, CVVs, or OTPs in this portal.
-        </div>
+        @unless(app()->environment('production'))
+            <div class="demo-note">
+                <strong>DEMO credentials</strong> are listed in the local install guide.
+                Change all passwords before any production use. Never enter PINs, CVVs, or OTPs in this portal.
+            </div>
+        @endunless
     </div>
 </div>
 @endsection
