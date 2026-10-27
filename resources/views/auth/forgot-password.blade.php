@@ -30,11 +30,13 @@
         <p style="margin-top:1rem;text-align:center">
             <a href="{{ route('login') }}">Back to sign in</a>
         </p>
-        <div class="demo-note">
-            DEMO users (e.g. <code>submitter@nnmfb.demo</code>) can request resets.
-            With <code>MAIL_MAILER=log</code>, the link appears in <code>storage/logs/laravel.log</code>.
-            Production uses Zoho SMTP from <code>.env</code>.
-        </div>
+        @unless(app()->environment('production'))
+            <div class="demo-note">
+                DEMO users (e.g. <code>submitter@nnmfb.demo</code>) can request resets.
+                With <code>MAIL_MAILER=log</code>, the link appears in <code>storage/logs/laravel.log</code>.
+                Production uses Zoho SMTP from <code>.env</code>.
+            </div>
+        @endunless
     </div>
 </div>
 @endsection
