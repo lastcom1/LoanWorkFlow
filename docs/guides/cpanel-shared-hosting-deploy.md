@@ -12,6 +12,10 @@
 
 Portal URL: **https://nigerianavymfb.com/transfer**
 
+## Production `.env`
+
+Copy **`.env.production.example`** → `.env` on the server. Do not use local `.env.example` (dev defaults).
+
 ## Production seeding (no DEMO users)
 
 ```bash

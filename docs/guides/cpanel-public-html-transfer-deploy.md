@@ -10,7 +10,7 @@ ZIP: `docs/packages/nnmfb-transfer-portal-package-b-public-html-transfer.zip`
 /home/USER/
   nnmfb-portal/                 ← FULL Laravel app (NOT under public_html)
     app/ bootstrap/ config/ database/ resources/ routes/
-    storage/ vendor/ artisan .env .env.example
+    storage/ vendor/ artisan .env .env.production.example
   public_html/
     (existing main website…)
     transfer/                   ← PUBLIC ENTRY ONLY
@@ -38,29 +38,21 @@ Confirm `public_html/transfer/index.php` resolves `dirname(__DIR__, 2).'/nnmfb-p
 
 ### 3. Configure `.env` in `~/nnmfb-portal`
 
-```env
-APP_ENV=production
-APP_DEBUG=false
-APP_URL=https://nigerianavymfb.com/transfer
-INSTALLER_ENABLED=false
-INSTALLER_SETUP_SECRET=
-SEED_DEMO_DATA=false
+**Use the production template** (do **not** use local `.env.example`):
 
-DB_CONNECTION=mysql
-DB_HOST=localhost
+```bash
+cp ~/nnmfb-portal/.env.production.example ~/nnmfb-portal/.env
+```
+
+Fill DB + Zoho SMTP. Safe defaults already include `APP_ENV=production`, `APP_DEBUG=false`, `SEED_DEMO_DATA=false`, `INSTALLER_ENABLED=false`, and `SESSION_SECURE_COOKIE=true`.
+
+```env
+APP_URL=https://nigerianavymfb.com/transfer
 DB_DATABASE=...
 DB_USERNAME=...
 DB_PASSWORD=...
-
-MAIL_MAILER=smtp
-MAIL_HOST=smtp.zoho.com
-MAIL_PORT=587
 MAIL_USERNAME=...
 MAIL_PASSWORD=...
-MAIL_ENCRYPTION=tls
-MAIL_FROM_ADDRESS=noreply@nigerianavymfb.com
-MAIL_FROM_NAME="NNMFB Transfer Portal"
-SESSION_SECURE_COOKIE=true
 ```
 
 ### 4. Permissions
