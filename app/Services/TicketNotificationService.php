@@ -35,19 +35,39 @@ class TicketNotificationService
 
     public function ticketClaimed(TransferTicket $ticket): void
     {
-        $recipients = collect([$ticket->submitter])
+        $ticket->loadMissing(['assignedOfficer.roles', 'assignedOfficer.branch', 'submitter', 'branch']);
+
+        $recipients = collect([$ticket->submitter]);
+
+        if (\App\Models\Setting::getValue('notify_supervisor_on_claim', '1') === '1') {
+            $recipients = $recipients->merge(User::role('supervisor')->where('is_active', true)->get());
+        }
+
+        $recipients = $recipients
             ->merge(User::role('md_ceo')->where('is_active', true)->get())
-            ->merge(User::role('supervisor')->where('is_active', true)->get())
             ->filter()
             ->unique('id');
 
+        $officer = $ticket->assignedOfficer;
+        $extra = [
+            'picker_name' => $officer?->name,
+            'picker_role' => $officer?->roleLabel(),
+            'picker_branch' => $officer?->branch?->name,
+            'ticket_ref' => $ticket->ticket_ref,
+        ];
+
         foreach ($recipients as $user) {
+            $subject = $user->id === $ticket->submitter_id
+                ? "Ticket picked up: {$ticket->ticket_ref}"
+                : "Ticket claimed: {$ticket->ticket_ref}";
+
             $this->queueMail(
                 $ticket,
                 $user,
                 TicketClaimedMail::class,
                 'ticket_claimed',
-                "Ticket claimed: {$ticket->ticket_ref}"
+                $subject,
+                $extra
             );
         }
     }

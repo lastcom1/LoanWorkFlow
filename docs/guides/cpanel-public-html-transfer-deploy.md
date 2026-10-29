@@ -61,6 +61,21 @@ MAIL_PASSWORD=...
 
 ### 5. SSH deploy (recommended)
 
+Production host example (`transfer.nigerianavymfb.com`):
+
+```bash
+cd /home2/nigeri45/nnmfb-portal
+/opt/alt/php83/usr/bin/php artisan key:generate --force   # skip if APP_KEY set
+/opt/alt/php83/usr/bin/php artisan migrate --force
+/opt/alt/php83/usr/bin/php artisan db:seed --class=ProductionSeeder --force
+/opt/alt/php83/usr/bin/php artisan installer:lock --email=you@your-domain.com
+/opt/alt/php83/usr/bin/php artisan config:cache
+/opt/alt/php83/usr/bin/php artisan route:cache
+/opt/alt/php83/usr/bin/php artisan view:cache
+```
+
+Generic shared hosting:
+
 ```bash
 cd ~/nnmfb-portal
 php artisan key:generate --force

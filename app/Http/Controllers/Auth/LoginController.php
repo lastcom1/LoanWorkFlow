@@ -81,6 +81,10 @@ class LoginController extends Controller
 
         $this->audit->log('login_success', $authUser, $authUser);
 
+        if ($authUser->must_change_password) {
+            return redirect()->route('password.change');
+        }
+
         return redirect()->intended(route('dashboard'));
     }
 

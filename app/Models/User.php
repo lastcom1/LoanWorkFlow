@@ -29,6 +29,8 @@ class User extends Authenticatable
         'phone',
         'is_active',
         'is_demo',
+        'must_change_password',
+        'password_changed_at',
         'last_login_at',
         'failed_login_attempts',
         'locked_until',
@@ -46,6 +48,8 @@ class User extends Authenticatable
             'password' => 'hashed',
             'is_active' => 'boolean',
             'is_demo' => 'boolean',
+            'must_change_password' => 'boolean',
+            'password_changed_at' => 'datetime',
             'last_login_at' => 'datetime',
             'locked_until' => 'datetime',
         ];

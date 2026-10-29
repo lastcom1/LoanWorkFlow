@@ -18,6 +18,7 @@ class TicketService
         private DuplicateDetectionService $duplicates,
         private AuditService $audit,
         private TicketNotificationService $notifications,
+        private SlaService $sla,
     ) {}
 
     public function generateTicketRef(): string
@@ -184,6 +185,11 @@ class TicketService
                 $payload['rejected_at'] = now();
                 $payload['rejected_by'] = $actor->id;
                 $payload['rejection_reason'] = $reason;
+            }
+            if (in_array($toStatus, [TransferTicket::STATUS_COMPLETED, TransferTicket::STATUS_REJECTED], true)
+                && $locked->claimed_at
+                && ! $locked->sla_stopped_at) {
+                $payload = array_merge($payload, $this->sla->stopPayload($locked));
             }
 
             $locked->forceFill($payload)->save();

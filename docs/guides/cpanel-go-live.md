@@ -394,36 +394,57 @@ Before go-live and on a schedule:
 
 ---
 
-## 13. Future updates
+## 13. Future updates (this production host)
 
-1. Backup DB + `nnmfb-portal` + `public_html/transfer`.
-2. Upload new Package B (or git pull on SSH).
-3. Replace `nnmfb-portal` code/`vendor` carefully; keep production `.env`.
-4. Refresh `public_html/transfer` assets (`css/`, `images/`, `index.php`, `.htaccess`).
-5. Run:
+**Live portal:** `https://transfer.nigerianavymfb.com`  
+**App root:** `/home2/nigeri45/nnmfb-portal`  
+**PHP binary (CloudLinux):** `/opt/alt/php83/usr/bin/php`  
+**Mail:** `MAIL_MAILER=sendmail` (SMTP outbound blocked on host)  
+**Cron:** `schedule:run` every minute + `queue:work --stop-when-empty` (queued mail)
+
+1. Backup DB + `nnmfb-portal` + public entry under the subdomain document root.
+2. Upload new Package B / `git pull` on SSH into the app root (keep production `.env`).
+3. Refresh public entry assets if the package changed (`css/`, `images/`, `index.php`, `.htaccess` — use `RewriteBase /` for subdomain docroot).
+4. Run **exactly**:
 
 ```bash
-cd ~/nnmfb-portal
-php artisan migrate --force
-php artisan installer:lock
-php artisan config:cache
-php artisan route:cache
-php artisan view:cache
+cd /home2/nigeri45/nnmfb-portal
+/opt/alt/php83/usr/bin/php artisan migrate --force
+/opt/alt/php83/usr/bin/php artisan installer:lock
+/opt/alt/php83/usr/bin/php artisan config:clear
+/opt/alt/php83/usr/bin/php artisan route:clear
+/opt/alt/php83/usr/bin/php artisan view:clear
+/opt/alt/php83/usr/bin/php artisan config:cache
+/opt/alt/php83/usr/bin/php artisan route:cache
+/opt/alt/php83/usr/bin/php artisan view:cache
 ```
 
-6. Smoke-test again. Never re-run DEMO seeders on production.
+5. Smoke-test: login, forced password change for a new user, Pick Up SLA badge, submitter “picked up” mail (queue worker). Never re-run DEMO seeders on production.
+
+### Pick-up SLA default
+
+- **Default target: 240 minutes (4 hours)** from claim/pick (`claim_sla_minutes`).
+- Optional overrides: Fund Transfer / Reversal minutes in **Admin → Settings** (blank = use default).
+- Clock starts on Pick Up; stops on Complete/Reject; duration stored on the ticket.
+- UI flags **Near SLA** (≥85% elapsed) and **Overdue**.
+
+### Onboarding
+
+- Admin **Add user** emails login URL + email + temporary password (failures never block create).
+- First login forces **Change password**.
+- **Resend welcome** resets a new temporary password and emails it again.
 
 ---
 
-## Quick reference — artisan commands (this repo)
+## Quick reference — artisan commands (this host)
 
 | Command | Purpose |
 |---------|---------|
-| `php artisan migrate --force` | Apply schema |
-| `php artisan db:seed --class=ProductionSeeder --force` | Roles + branches only |
-| `php artisan installer:lock` | Disable web installer |
-| `php artisan queue:work --stop-when-empty` | Send queued mail |
-| `php artisan schedule:run` | Scheduler tick |
+| `/opt/alt/php83/usr/bin/php artisan migrate --force` | Apply schema |
+| `/opt/alt/php83/usr/bin/php artisan db:seed --class=ProductionSeeder --force` | Roles + branches only |
+| `/opt/alt/php83/usr/bin/php artisan installer:lock` | Disable web installer |
+| `/opt/alt/php83/usr/bin/php artisan queue:work --stop-when-empty` | Send queued mail |
+| `/opt/alt/php83/usr/bin/php artisan schedule:run` | Scheduler tick |
 
 ---
 

@@ -72,5 +72,49 @@
     </main>
 </div>
 @stack('scripts')
+<script>
+(function () {
+  function fmt(seconds) {
+    var neg = seconds < 0;
+    seconds = Math.abs(seconds | 0);
+    var h = Math.floor(seconds / 3600);
+    var m = Math.floor((seconds % 3600) / 60);
+    var s = seconds % 60;
+    var out = h > 0
+      ? h + ':' + String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0')
+      : m + ':' + String(s).padStart(2, '0');
+    return (neg ? '-' : '') + out;
+  }
+  function tick() {
+    document.querySelectorAll('[data-sla-live="1"]').forEach(function (el) {
+      var claimed = Date.parse(el.getAttribute('data-claimed-at'));
+      var due = Date.parse(el.getAttribute('data-due-at'));
+      var minutes = parseInt(el.getAttribute('data-minutes') || '0', 10);
+      if (!claimed || !due) return;
+      var now = Date.now();
+      var elapsed = Math.floor((now - claimed) / 1000);
+      var remaining = Math.floor((due - now) / 1000);
+      var elapsedNode = el.querySelector('.sla-elapsed');
+      var remainingNode = el.querySelector('.sla-remaining');
+      var labelNode = el.querySelector('.sla-label');
+      if (elapsedNode) elapsedNode.textContent = '⏱ ' + fmt(elapsed);
+      if (remainingNode) remainingNode.textContent = '· left ' + fmt(remaining);
+      el.classList.remove('sla-ok', 'sla-near', 'sla-breached');
+      if (remaining < 0) {
+        el.classList.add('sla-breached');
+        if (labelNode) labelNode.textContent = 'Overdue';
+      } else if (minutes > 0 && elapsed / (minutes * 60) >= 0.85) {
+        el.classList.add('sla-near');
+        if (labelNode) labelNode.textContent = 'Near SLA';
+      } else {
+        el.classList.add('sla-ok');
+        if (labelNode) labelNode.textContent = 'On track';
+      }
+    });
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
 </body>
 </html>

@@ -36,7 +36,8 @@ class TransferTicket extends Model
         'duplicate_override', 'duplicate_override_reason', 'duplicate_override_by',
         'rejection_reason', 'rejected_by', 'rejected_at',
         'resolution_notes', 'processing_outcome',
-        'claimed_at', 'started_at', 'completed_at', 'submitted_at',
+        'claimed_at', 'sla_minutes', 'sla_due_at', 'sla_stopped_at', 'sla_elapsed_seconds',
+        'started_at', 'completed_at', 'submitted_at',
     ];
 
     protected function casts(): array
@@ -49,6 +50,10 @@ class TransferTicket extends Model
             'duplicate_override' => 'boolean',
             'rejected_at' => 'datetime',
             'claimed_at' => 'datetime',
+            'sla_minutes' => 'integer',
+            'sla_due_at' => 'datetime',
+            'sla_stopped_at' => 'datetime',
+            'sla_elapsed_seconds' => 'integer',
             'started_at' => 'datetime',
             'completed_at' => 'datetime',
             'submitted_at' => 'datetime',
@@ -165,5 +170,86 @@ class TransferTicket extends Model
     public function scopeForSubmitter($query, int $submitterId)
     {
         return $query->where('submitter_id', $submitterId);
+    }
+
+    public function hasSlaClock(): bool
+    {
+        return $this->claimed_at !== null && $this->sla_due_at !== null;
+    }
+
+    public function slaIsRunning(): bool
+    {
+        return $this->hasSlaClock() && $this->sla_stopped_at === null && $this->isOpen();
+    }
+
+    public function slaIsBreached(?\DateTimeInterface $now = null): bool
+    {
+        if (! $this->hasSlaClock()) {
+            return false;
+        }
+
+        $end = $this->sla_stopped_at ?? ($now ? \Illuminate\Support\Carbon::instance($now) : now());
+
+        return $end->greaterThan($this->sla_due_at);
+    }
+
+    public function slaIsNear(?\DateTimeInterface $now = null): bool
+    {
+        if (! $this->slaIsRunning() || $this->slaIsBreached($now)) {
+            return false;
+        }
+
+        $now = $now ? \Illuminate\Support\Carbon::instance($now) : now();
+        $total = max(1, (int) ($this->sla_minutes ?? 0) * 60);
+        $elapsed = max(0, $this->claimed_at->diffInSeconds($now));
+
+        return ($elapsed / $total) >= \App\Services\SlaService::WARN_RATIO;
+    }
+
+    /**
+     * Remaining seconds (negative when overdue). Null if no SLA.
+     */
+    public function slaRemainingSeconds(?\DateTimeInterface $now = null): ?int
+    {
+        if (! $this->hasSlaClock()) {
+            return null;
+        }
+
+        $end = $this->sla_stopped_at ?? ($now ? \Illuminate\Support\Carbon::instance($now) : now());
+
+        return (int) $end->diffInSeconds($this->sla_due_at, false);
+    }
+
+    public function slaElapsedSecondsResolved(?\DateTimeInterface $now = null): ?int
+    {
+        if (! $this->hasSlaClock()) {
+            return null;
+        }
+
+        if ($this->sla_elapsed_seconds !== null) {
+            return (int) $this->sla_elapsed_seconds;
+        }
+
+        $end = $this->sla_stopped_at ?? ($now ? \Illuminate\Support\Carbon::instance($now) : now());
+
+        return max(0, (int) $this->claimed_at->diffInSeconds($end));
+    }
+
+    public function slaStatusLabel(?\DateTimeInterface $now = null): string
+    {
+        if (! $this->hasSlaClock()) {
+            return '—';
+        }
+        if ($this->sla_stopped_at) {
+            return $this->slaIsBreached() ? 'Closed (breached)' : 'Closed (met)';
+        }
+        if ($this->slaIsBreached($now)) {
+            return 'Overdue';
+        }
+        if ($this->slaIsNear($now)) {
+            return 'Near SLA';
+        }
+
+        return 'On track';
     }
 }

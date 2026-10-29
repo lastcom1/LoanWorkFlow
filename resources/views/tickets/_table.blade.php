@@ -7,6 +7,7 @@
         <th>Account</th>
         <th>Amount</th>
         <th>Status</th>
+        <th>SLA</th>
         <th>Officer</th>
         <th></th>
     </tr>
@@ -25,11 +26,12 @@
             <td>{{ $ticket->maskedAccount() }}</td>
             <td>{{ $ticket->formattedAmount() }}</td>
             <td><x-status-badge :status="$ticket->status" /></td>
+            <td><x-sla-badge :ticket="$ticket" /></td>
             <td>{{ $ticket->assignedOfficer?->name ?? '—' }}</td>
             <td><a class="btn btn-sm btn-outline" href="{{ route('tickets.show', $ticket) }}">View</a></td>
         </tr>
     @empty
-        <tr><td colspan="8" class="muted">No tickets found.</td></tr>
+        <tr><td colspan="9" class="muted">No tickets found.</td></tr>
     @endforelse
     </tbody>
 </table>

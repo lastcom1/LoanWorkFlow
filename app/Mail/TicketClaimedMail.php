@@ -23,8 +23,10 @@ class TicketClaimedMail extends Mailable implements ShouldQueue
 
     public function envelope(): Envelope
     {
+        $forSubmitter = $this->recipient->id === $this->ticket->submitter_id;
+
         return new Envelope(
-            subject: '[NNMFB] Ticket Claimed — '.$this->ticket->ticket_ref,
+            subject: ($forSubmitter ? '[NNMFB] Ticket Picked Up — ' : '[NNMFB] Ticket Claimed — ').$this->ticket->ticket_ref,
         );
     }
 

@@ -14,6 +14,7 @@ class TicketClaimService
     public function __construct(
         private AuditService $audit,
         private TicketNotificationService $notifications,
+        private SlaService $sla,
     ) {}
 
     /**
@@ -66,11 +67,12 @@ class TicketClaimService
                 }
 
                 $from = $locked->status;
-                $locked->forceFill([
+                $claimedAt = now();
+                $locked->forceFill(array_merge([
                     'assigned_officer_id' => $officer->id,
                     'status' => TransferTicket::STATUS_CLAIMED,
-                    'claimed_at' => now(),
-                ])->save();
+                    'claimed_at' => $claimedAt,
+                ], $this->sla->startPayload($locked, $claimedAt)))->save();
 
                 TicketAssignment::query()->create([
                     'ticket_id' => $locked->id,

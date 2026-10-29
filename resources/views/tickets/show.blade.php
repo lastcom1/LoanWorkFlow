@@ -22,6 +22,8 @@
         <div><strong>Amount</strong><div>{{ $ticket->formattedAmount() }}</div></div>
         <div><strong>Original reference</strong><div>{{ $ticket->original_reference ?: '—' }}</div></div>
         <div><strong>Assigned officer</strong><div>{{ $ticket->assignedOfficer?->name ?: 'Unassigned' }}</div></div>
+        <div><strong>Picked up at</strong><div>{{ optional($ticket->claimed_at)->toDayDateTimeString() ?: '—' }}</div></div>
+        <div><strong>Pick-up SLA</strong><div><x-sla-badge :ticket="$ticket" /></div></div>
         <div><strong>Transaction at</strong><div>{{ optional($ticket->transaction_at)->toDayDateTimeString() ?: '—' }}</div></div>
         <div><strong>Submitted at</strong><div>{{ optional($ticket->submitted_at)->toDayDateTimeString() ?: '—' }}</div></div>
         <div class="full"><strong>Description</strong><div>{{ $ticket->description ?: '—' }}</div></div>

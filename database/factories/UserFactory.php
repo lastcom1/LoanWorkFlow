@@ -25,6 +25,16 @@ class UserFactory extends Factory
             'staff_id' => 'STAFF-'.fake()->unique()->numerify('####'),
             'is_active' => true,
             'is_demo' => false,
+            'must_change_password' => false,
+            'password_changed_at' => now(),
         ];
+    }
+
+    public function mustChangePassword(): static
+    {
+        return $this->state(fn () => [
+            'must_change_password' => true,
+            'password_changed_at' => null,
+        ]);
     }
 }
