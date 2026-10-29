@@ -1,0 +1,32 @@
+# Public entry when the portal is the DOCUMENT ROOT of a subdomain
+# (e.g. https://transfer.example.com/ → files live in that subdomain's public_html/).
+# Use RewriteBase / — NOT /transfer/.
+#
+# Application code still lives OUTSIDE the web root (e.g. ~/nnmfb-portal).
+# Point index.php $appRoot accordingly (often dirname(__DIR__).'/nnmfb-portal'
+# or an absolute path / NNMFB_APP_ROOT).
+
+<IfModule mod_rewrite.c>
+    <IfModule mod_negotiation.c>
+        Options -MultiViews -Indexes
+    </IfModule>
+
+    RewriteEngine On
+    RewriteBase /
+
+    # Authorization header
+    RewriteCond %{HTTP:Authorization} .
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
+    # Trailing slashes
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_URI} (.+)/$
+    RewriteRule ^ %1 [L,R=301]
+
+    # Front controller
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+Options -Indexes
