@@ -23,7 +23,7 @@ class UserOnboardingTest extends TestCase
     private function admin(): User
     {
         $admin = User::factory()->create(['email' => 'admin-onboard@nnmfb.test']);
-        $admin->assignRole('admin');
+        $admin->assignRole('super_admin');
 
         return $admin;
     }

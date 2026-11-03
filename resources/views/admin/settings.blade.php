@@ -3,7 +3,7 @@
 @section('heading', 'Workflow settings')
 @section('content')
 <div class="panel">
-<p class="help">Zoho SMTP / sendmail credentials are configured only via <code>.env</code> — never stored in the database UI.</p>
+<p class="help">Mail uses local sendmail (<code>MAIL_MAILER=sendmail</code>). The From address must be <code>@nigerianavymfb.com</code>. Credentials stay in <code>.env</code> only.</p>
 <form method="POST" action="{{ route('admin.settings.update') }}">
 @csrf @method('PUT')
 <div class="form-grid">

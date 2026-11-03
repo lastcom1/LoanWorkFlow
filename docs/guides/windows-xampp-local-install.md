@@ -77,7 +77,8 @@ Set `DB_CONNECTION=sqlite` in `.env` (comment out MySQL lines), then `php artisa
 
 | Role | Email | Password |
 |------|-------|----------|
-| Admin | admin@nnmfb.demo | DemoAdmin@123 |
+| Super Admin | admin@nnmfb.demo | DemoAdmin@123 |
+| Admin | portaladmin@nnmfb.demo | DemoPortalAdmin@123 |
 | MD/CEO | mdceo@nnmfb.demo | DemoMdCeo@123 |
 | Supervisor | supervisor@nnmfb.demo | DemoSupervisor@123 |
 | FT Officer 1 | ft1@nnmfb.demo | DemoFtOfficer1@123 |

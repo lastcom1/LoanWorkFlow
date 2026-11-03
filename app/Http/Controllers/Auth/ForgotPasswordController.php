@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\AuditService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -27,7 +28,7 @@ class ForgotPasswordController extends Controller
         ]);
 
         $email = strtolower(trim($request->string('email')->toString()));
-        $user = \App\Models\User::query()->where('email', $email)->first();
+        $user = User::query()->where('email', $email)->first();
 
         $generic = 'If that email is registered and eligible, a password reset link has been sent. Check your inbox (and spam). The link expires in 60 minutes.';
 
@@ -70,10 +71,10 @@ class ForgotPasswordController extends Controller
     private function mailFailureResponse(
         string $generic,
         string $email,
-        \App\Models\User $user,
+        User $user,
         Throwable $e
     ) {
-        Log::warning('Password reset mail transport failed', [
+        Log::error('[mail] Password reset mail transport failed', [
             'email_hash' => hash('sha256', $email),
             'error' => $e->getMessage(),
         ]);

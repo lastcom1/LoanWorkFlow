@@ -24,7 +24,11 @@ class RoleSeeder extends Seeder
         }
 
         $map = [
-            'admin' => $permissions,
+            // Former "admin" / System Administrator. Full access, including assigning Admin.
+            'super_admin' => $permissions,
+            // Account administration only. Ticket work stays with submitters and FT officers.
+            // users.manage is enforced further in UserController (no Super Admin / Admin promotion).
+            'admin' => ['users.manage', 'tickets.view'],
             'md_ceo' => ['tickets.view', 'tickets.reassign', 'audit.view', 'dashboard.executive'],
             'supervisor' => ['tickets.view', 'tickets.reassign', 'audit.view'],
             'ft_officer' => ['tickets.view', 'tickets.claim', 'tickets.process', 'tickets.reject'],

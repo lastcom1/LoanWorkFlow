@@ -35,7 +35,7 @@ class TicketController extends Controller
             });
         } elseif ($user->hasRole('auditor')) {
             // read-all
-        } elseif (! $user->hasAnyRole(['admin', 'supervisor', 'md_ceo'])) {
+        } elseif (! $user->hasAnyRole([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, 'supervisor', 'md_ceo'])) {
             abort(403);
         }
 
@@ -93,7 +93,7 @@ class TicketController extends Controller
         );
 
         // Submitters get a minimal payload (no other staff names, officer, branch, or deep links).
-        $isPrivileged = $request->user()->hasAnyRole(['admin', 'supervisor', 'md_ceo', 'auditor', 'ft_officer']);
+        $isPrivileged = $request->user()->hasAnyRole([User::ROLE_SUPER_ADMIN, 'supervisor', 'md_ceo', 'auditor', 'ft_officer']);
 
         return response()->json([
             'has_duplicates' => $matches->isNotEmpty(),
@@ -193,7 +193,7 @@ class TicketController extends Controller
             'duplicateMatches.matchedTicket.assignedOfficer',
         ]);
 
-        $canSeeInternal = $request->user()->hasAnyRole(['admin', 'supervisor', 'ft_officer', 'md_ceo', 'auditor']);
+        $canSeeInternal = $request->user()->hasAnyRole([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, 'supervisor', 'ft_officer', 'md_ceo', 'auditor']);
 
         return view('tickets.show', compact('ticket', 'canSeeInternal'));
     }
@@ -327,6 +327,10 @@ class TicketController extends Controller
     {
         $this->authorizeView($request, $ticket);
 
+        if ($request->user()->isViewOnlyAdmin()) {
+            abort(403, 'Admins can view tickets but cannot change them.');
+        }
+
         $data = $request->validate([
             'body' => ['required', 'string', 'max:5000'],
             'is_internal' => ['nullable', 'boolean'],
@@ -363,7 +367,7 @@ class TicketController extends Controller
 
     public function reassign(Request $request, TransferTicket $ticket)
     {
-        if (! $request->user()->hasAnyRole(['supervisor', 'admin', 'md_ceo'])) {
+        if (! $request->user()->hasAnyRole(['supervisor', User::ROLE_SUPER_ADMIN, 'md_ceo'])) {
             abort(403);
         }
 
@@ -388,7 +392,7 @@ class TicketController extends Controller
 
     private function authorizeSubmitter(Request $request): void
     {
-        if (! $request->user()->hasAnyRole(['submitter', 'admin'])) {
+        if (! $request->user()->hasAnyRole(['submitter', User::ROLE_SUPER_ADMIN])) {
             abort(403);
         }
     }
@@ -397,7 +401,7 @@ class TicketController extends Controller
     {
         $user = $request->user();
 
-        if ($user->hasAnyRole(['admin', 'supervisor', 'md_ceo', 'auditor'])) {
+        if ($user->hasAnyRole([User::ROLE_SUPER_ADMIN, User::ROLE_ADMIN, 'supervisor', 'md_ceo', 'auditor'])) {
             return;
         }
         if ($user->hasRole('submitter') && $ticket->submitter_id === $user->id) {

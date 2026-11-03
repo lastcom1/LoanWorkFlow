@@ -6,6 +6,7 @@ use App\Mail\TicketClaimedMail;
 use App\Mail\TicketStatusUpdateMail;
 use App\Mail\TicketSubmittedMail;
 use App\Models\NotificationDelivery;
+use App\Models\Setting;
 use App\Models\TransferTicket;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
@@ -39,7 +40,7 @@ class TicketNotificationService
 
         $recipients = collect([$ticket->submitter]);
 
-        if (\App\Models\Setting::getValue('notify_supervisor_on_claim', '1') === '1') {
+        if (Setting::getValue('notify_supervisor_on_claim', '1') === '1') {
             $recipients = $recipients->merge(User::role('supervisor')->where('is_active', true)->get());
         }
 
@@ -136,7 +137,7 @@ class TicketNotificationService
                 'error_message' => $e->getMessage(),
             ])->save();
 
-            Log::warning('Notification delivery failed', [
+            Log::error('[mail] Notification delivery failed', [
                 'delivery_id' => $delivery->id,
                 'error' => $e->getMessage(),
             ]);

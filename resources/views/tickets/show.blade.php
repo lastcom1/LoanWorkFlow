@@ -103,7 +103,7 @@
         @endforeach
     </ul>
 
-    @if($ticket->isOpen())
+    @if($ticket->isOpen() && ! auth()->user()->isViewOnlyAdmin())
         <form method="POST" action="{{ route('tickets.comment', $ticket) }}" style="margin-top:1rem">
             @csrf
             <label for="body">Add comment</label>
@@ -141,7 +141,7 @@
     </ul>
 </div>
 
-@if(auth()->user()->hasAnyRole(['supervisor','admin','md_ceo']) && $ticket->isOpen())
+@if(auth()->user()->hasAnyRole(['supervisor','super_admin','md_ceo']) && $ticket->isOpen())
 <div class="panel">
     <h2>Reassign (authorized + audited)</h2>
     <form method="POST" action="{{ route('tickets.reassign', $ticket) }}" class="form-grid">

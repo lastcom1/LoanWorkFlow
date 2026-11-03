@@ -3,7 +3,7 @@
 ## Implemented controls
 
 - Session auth + login throttle / temporary lockout after failed attempts  
-- RBAC on routes (admin, md_ceo, supervisor, ft_officer, submitter, auditor)  
+- RBAC on routes (super_admin, admin, md_ceo, supervisor, ft_officer, submitter, auditor). Admin can onboard and activate/deactivate users and can view tickets, but cannot manage Super Admins, assign Admin or Super Admin, deactivate themselves, or submit/process tickets.  
 - CSRF on state-changing requests; Blade XSS escaping  
 - Parameterized Eloquent/Query Builder usage  
 - Exclusive claim with `lockForUpdate()` inside a DB transaction  

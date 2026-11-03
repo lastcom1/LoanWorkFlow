@@ -36,9 +36,10 @@ As the claiming officer: Start Processing → Request Info / Complete / Reject (
 |---------|----------------|
 | `supervisor@nnmfb.demo` | Queue oversight, workloads, duplicates |
 | `mdceo@nnmfb.demo` | Executive metrics; masked accounts; claim notifications path |
-| `admin@nnmfb.demo` | Users, branches, settings, audit (view only for audit erase) |
+| `admin@nnmfb.demo` | Super Admin: users, branches, settings, audit (view only for audit erase) |
+| `portaladmin@nnmfb.demo` | Admin: onboard and activate/deactivate users, view tickets. Cannot manage Super Admins or process tickets |
 | `auditor@nnmfb.demo` | Read-only audit trail + CSV export |
 
 ## 8. Emails
 
-With `MAIL_MAILER=log`, check `storage/logs/laravel.log` for HTML mail content (New Ticket, Claimed, Status Update). With Zoho SMTP configured, queued mail uses the three branded templates.
+With `MAIL_MAILER=log`, check `storage/logs/laravel.log` for HTML mail content (New Ticket, Claimed, Status Update, welcome). Production sends through local sendmail. Welcome mail is synchronous; ticket mail is queued.

@@ -3,7 +3,7 @@
 @section('heading', 'Immutable audit trail')
 @section('subheading', 'Append-only through the application UI — secrets are redacted')
 @section('actions')
-@if(auth()->user()->hasAnyRole(['admin','auditor']))
+@if(auth()->user()->hasAnyRole(['super_admin','auditor']))
 <a class="btn btn-outline" href="{{ route('auditor.audit-logs.export') }}">Export CSV</a>
 @endif
 @endsection

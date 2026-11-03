@@ -8,7 +8,7 @@
 <h1>Web Installer</h1>
 <p>NNMFB Transfer &amp; Reversal Portal — shared hosting setup</p>
 </div>
-<p>This wizard configures database connectivity, Zoho SMTP environment values, runs migrations, and creates the initial administrator. It disables itself after a successful install.</p>
+<p>This wizard configures database connectivity, local sendmail, runs migrations, and creates the initial Super Admin. It disables itself after a successful install.</p>
 <a class="btn btn-primary" href="{{ route('installer.requirements') }}">Begin requirements check</a>
 </div>
 </div>

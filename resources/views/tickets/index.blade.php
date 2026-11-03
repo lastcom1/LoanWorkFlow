@@ -3,7 +3,7 @@
 @section('title', 'Tickets')
 @section('heading', 'Tickets')
 @section('actions')
-    @if(auth()->user()->hasAnyRole(['submitter','admin']))
+    @if(auth()->user()->hasAnyRole(['submitter','super_admin']))
         <a class="btn btn-gold" href="{{ route('tickets.create') }}">New Ticket</a>
     @endif
 @endsection

@@ -44,15 +44,15 @@ Confirm `public_html/transfer/index.php` resolves `dirname(__DIR__, 2).'/nnmfb-p
 cp ~/nnmfb-portal/.env.production.example ~/nnmfb-portal/.env
 ```
 
-Fill DB + Zoho SMTP. Safe defaults already include `APP_ENV=production`, `APP_DEBUG=false`, `SEED_DEMO_DATA=false`, `INSTALLER_ENABLED=false`, and `SESSION_SECURE_COOKIE=true`.
+Fill DB credentials. Set `MAIL_MAILER=sendmail` and `MAIL_FROM_ADDRESS=noreply@nigerianavymfb.com` (this host blocks outbound SMTP). Safe defaults already include `APP_ENV=production`, `APP_DEBUG=false`, `SEED_DEMO_DATA=false`, `INSTALLER_ENABLED=false`, and `SESSION_SECURE_COOKIE=true`.
 
 ```env
 APP_URL=https://nigerianavymfb.com/transfer
 DB_DATABASE=...
 DB_USERNAME=...
 DB_PASSWORD=...
-MAIL_USERNAME=...
-MAIL_PASSWORD=...
+MAIL_MAILER=sendmail
+MAIL_FROM_ADDRESS=noreply@nigerianavymfb.com
 ```
 
 ### 4. Permissions
@@ -100,7 +100,7 @@ $u = \App\Models\User::create([
   'is_active' => true,
   'is_demo' => false,
 ]);
-$u->assignRole('admin');
+$u->assignRole('super_admin');
 ```
 
 ### 6. Optional web installer (gated)

@@ -36,6 +36,7 @@ class ProductionSeederTest extends TestCase
         $this->assertSame(0, User::query()->count());
         $this->assertDatabaseHas('branches', ['code' => 'HQ-ABJ']);
         $this->assertDatabaseHas('roles', ['name' => 'admin']);
+        $this->assertDatabaseHas('roles', ['name' => 'super_admin']);
     }
 
     public function test_database_seeder_skips_demo_when_app_env_production(): void

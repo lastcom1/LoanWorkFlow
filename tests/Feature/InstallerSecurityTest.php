@@ -111,6 +111,9 @@ class InstallerSecurityTest extends TestCase
             'name' => 'Fresh Admin',
             'is_demo' => 0,
         ]);
+        $this->assertTrue(
+            User::query()->where('email', 'fresh-admin@nnmfb.example')->firstOrFail()->hasRole('super_admin')
+        );
         $this->assertTrue(File::exists($this->lockPath));
 
         $this->get(route('installer.welcome', ['setup_secret' => 'correct-secret']))

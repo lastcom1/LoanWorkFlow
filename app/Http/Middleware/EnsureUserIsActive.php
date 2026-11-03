@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\UserAccountService;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -13,15 +14,24 @@ class EnsureUserIsActive
     {
         $user = $request->user();
 
-        if ($user && (! $user->is_active || $user->isLocked())) {
+        if ($user && ! $user->is_active) {
+            app(UserAccountService::class)->revokeAccess($user);
             Auth::logout();
             $request->session()->invalidate();
             $request->session()->regenerateToken();
 
             return redirect()->route('login')->withErrors([
-                'email' => $user->isLocked()
-                    ? 'Your account is temporarily locked due to failed login attempts.'
-                    : 'Your account has been deactivated. Contact an administrator.',
+                'email' => UserAccountService::DEACTIVATED_LOGIN_MESSAGE,
+            ]);
+        }
+
+        if ($user && $user->isLocked()) {
+            Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()->route('login')->withErrors([
+                'email' => 'Your account is temporarily locked due to failed login attempts.',
             ]);
         }
 

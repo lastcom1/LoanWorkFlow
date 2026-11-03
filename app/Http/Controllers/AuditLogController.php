@@ -3,13 +3,14 @@
 namespace App\Http\Controllers;
 
 use App\Models\AuditLog;
+use App\Models\User;
 use Illuminate\Http\Request;
 
 class AuditLogController extends Controller
 {
     public function index(Request $request)
     {
-        if (! $request->user()->hasAnyRole(['admin', 'auditor', 'md_ceo', 'supervisor'])) {
+        if (! $request->user()->hasAnyRole([User::ROLE_SUPER_ADMIN, 'auditor', 'md_ceo', 'supervisor'])) {
             abort(403);
         }
 
@@ -29,7 +30,7 @@ class AuditLogController extends Controller
 
     public function export(Request $request)
     {
-        if (! $request->user()->hasAnyRole(['admin', 'auditor'])) {
+        if (! $request->user()->hasAnyRole([User::ROLE_SUPER_ADMIN, 'auditor'])) {
             abort(403);
         }
 

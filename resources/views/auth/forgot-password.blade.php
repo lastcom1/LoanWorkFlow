@@ -34,7 +34,7 @@
             <div class="demo-note">
                 DEMO users (e.g. <code>submitter@nnmfb.demo</code>) can request resets.
                 With <code>MAIL_MAILER=log</code>, the link appears in <code>storage/logs/laravel.log</code>.
-                Production uses Zoho SMTP from <code>.env</code>.
+                Production on this host uses local sendmail (<code>MAIL_MAILER=sendmail</code>), not outbound SMTP.
             </div>
         @endunless
     </div>

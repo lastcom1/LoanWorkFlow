@@ -22,10 +22,17 @@ class DefaultAdminSeeder extends Seeder
         $demos = [
             [
                 'email' => 'admin@nnmfb.demo',
-                'name' => 'DEMO System Admin',
+                'name' => 'DEMO Super Admin',
                 'staff_id' => 'DEMO-ADM-001',
-                'role' => 'admin',
+                'role' => 'super_admin',
                 'password' => 'DemoAdmin@123',
+            ],
+            [
+                'email' => 'portaladmin@nnmfb.demo',
+                'name' => 'DEMO Admin',
+                'staff_id' => 'DEMO-ADM-002',
+                'role' => 'admin',
+                'password' => 'DemoPortalAdmin@123',
             ],
             [
                 'email' => 'mdceo@nnmfb.demo',

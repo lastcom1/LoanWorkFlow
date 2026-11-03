@@ -17,6 +17,13 @@ return [
     'default' => env('MAIL_MAILER', 'log'),
 
     /*
+    | Set at runtime in production (and whenever the mailer is sendmail) so
+    | From / Sender / Return-Path stay on @nigerianavymfb.com. Local tests
+    | leave this false and use the array mailer.
+    */
+    'enforce_local_envelope' => false,
+
+    /*
     |--------------------------------------------------------------------------
     | Mailer Configurations
     |--------------------------------------------------------------------------
@@ -67,7 +74,10 @@ return [
 
         'sendmail' => [
             'transport' => 'sendmail',
-            'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -bs -i'),
+            // -t -i is the PHP mail() / cPanel Exim pipe. -bs speaks SMTP to
+            // sendmail and is rejected or blocked on this host. The -f envelope
+            // sender is applied in production by LocalSendmailConfigurator.
+            'path' => env('MAIL_SENDMAIL_PATH', '/usr/sbin/sendmail -t -i'),
         ],
 
         'log' => [

@@ -81,12 +81,8 @@ class InstallerController extends Controller
             'db_database' => ['required', 'string'],
             'db_username' => ['required', 'string'],
             'db_password' => ['nullable', 'string'],
-            'mail_host' => ['required', 'string'],
-            'mail_port' => ['required', 'string'],
-            'mail_username' => ['required', 'string'],
-            'mail_password' => ['required', 'string'],
-            'mail_from_address' => ['required', 'email'],
-            'mail_from_name' => ['required', 'string'],
+            'mail_from_address' => ['required', 'email', 'regex:/@nigerianavymfb\.com$/i'],
+            'mail_from_name' => ['required', 'string', 'max:120'],
         ]);
 
         try {
@@ -117,12 +113,8 @@ class InstallerController extends Controller
             'DB_DATABASE' => $data['db_database'],
             'DB_USERNAME' => $data['db_username'],
             'DB_PASSWORD' => '"'.addcslashes($data['db_password'] ?? '', '"\\').'"',
-            'MAIL_MAILER' => 'smtp',
-            'MAIL_HOST' => $data['mail_host'],
-            'MAIL_PORT' => $data['mail_port'],
-            'MAIL_USERNAME' => $data['mail_username'],
-            'MAIL_PASSWORD' => '"'.addcslashes($data['mail_password'], '"\\').'"',
-            'MAIL_ENCRYPTION' => 'tls',
+            'MAIL_MAILER' => 'sendmail',
+            'MAIL_SENDMAIL_PATH' => '"/usr/sbin/sendmail -t -i"',
             'MAIL_FROM_ADDRESS' => $data['mail_from_address'],
             'MAIL_FROM_NAME' => '"'.addcslashes($data['mail_from_name'], '"\\').'"',
         ]);
@@ -188,7 +180,7 @@ class InstallerController extends Controller
             'is_active' => true,
             'is_demo' => false,
         ]);
-        $user->assignRole('admin');
+        $user->assignRole('super_admin');
 
         $this->guard->lock($user->email, 'web_installer');
         $this->disableInstallerInEnv();

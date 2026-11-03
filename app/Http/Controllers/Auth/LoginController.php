@@ -3,15 +3,21 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\AuditService;
+use App\Services\UserAccountService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 
 class LoginController extends Controller
 {
-    public function __construct(private AuditService $audit) {}
+    public function __construct(
+        private AuditService $audit,
+        private UserAccountService $accounts,
+    ) {}
 
     public function show()
     {
@@ -34,7 +40,18 @@ class LoginController extends Controller
             ]);
         }
 
-        $user = \App\Models\User::query()->where('email', $credentials['email'])->first();
+        $user = User::query()->where('email', $credentials['email'])->first();
+
+        // Check before Auth::attempt so a deactivated account never receives a
+        // session or a remember-me cookie. Wrong passwords stay generic.
+        if ($user && ! $user->is_active && Hash::check($credentials['password'], $user->password)) {
+            $this->accounts->revokeAccess($user);
+            $this->audit->log('login_blocked_deactivated', $user, $user);
+
+            throw ValidationException::withMessages([
+                'email' => UserAccountService::DEACTIVATED_LOGIN_MESSAGE,
+            ]);
+        }
 
         if ($user && $user->isLocked()) {
             throw ValidationException::withMessages([
@@ -63,13 +80,17 @@ class LoginController extends Controller
         RateLimiter::clear($key);
         $request->session()->regenerate();
 
-        /** @var \App\Models\User $authUser */
+        /** @var User $authUser */
         $authUser = Auth::user();
 
         if (! $authUser->is_active) {
+            $this->accounts->revokeAccess($authUser);
             Auth::logout();
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
             throw ValidationException::withMessages([
-                'email' => 'Your account has been deactivated.',
+                'email' => UserAccountService::DEACTIVATED_LOGIN_MESSAGE,
             ]);
         }
 

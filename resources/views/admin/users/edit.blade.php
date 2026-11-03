@@ -18,13 +18,24 @@
 </div>
 <div>
 <label>Role</label>
-<select name="role" required>
-@foreach($roles as $role)<option value="{{ $role }}" @selected(old('role', $user->primaryRoleName())===$role)>{{ $role }}</option>@endforeach
+<select name="role" required @disabled($roleLocked)>
+@foreach($roles as $role)<option value="{{ $role }}" @selected(old('role', $user->primaryRoleName())===$role)>{{ \App\Models\User::roleOptions()[$role] ?? $role }}</option>@endforeach
 </select>
+@if($roleLocked)
+<input type="hidden" name="role" value="admin">
+<p class="help">Only a Super Admin can change an Admin's role.</p>
+@endif
 </div>
 <div><label>New password (optional)</label><input type="password" name="password"></div>
 <div><label>Confirm password</label><input type="password" name="password_confirmation"></div>
-<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->is_active))> Active</label></div>
+@if($canDeactivate)
+<input type="hidden" name="is_active" value="0">
+<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', $user->is_active ? '1' : '0') == '1')> Active</label></div>
+<p class="help">Clearing Active signs the user out, invalidates remember-me, and blocks password reset.</p>
+@else
+<input type="hidden" name="is_active" value="1">
+<div class="full"><p class="help">You cannot deactivate your own account. Ask a Super Admin if this account should be closed.</p></div>
+@endif
 <div><button class="btn btn-primary" type="submit">Save</button></div>
 </form>
 </div>

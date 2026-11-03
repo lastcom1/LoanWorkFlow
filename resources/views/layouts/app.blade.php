@@ -22,14 +22,16 @@
         <nav>
             <a href="{{ route('dashboard') }}" class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">Dashboard</a>
             <a href="{{ route('tickets.index') }}" class="{{ request()->routeIs('tickets.*') ? 'active' : '' }}">Tickets</a>
-            @if(auth()->user()->hasAnyRole(['submitter','admin']))
+            @if(auth()->user()->hasAnyRole(['submitter','super_admin']))
                 <a href="{{ route('tickets.create') }}">New Ticket</a>
             @endif
-            @if(auth()->user()->hasAnyRole(['admin','auditor','md_ceo','supervisor']))
+            @if(auth()->user()->hasAnyRole(['super_admin','auditor','md_ceo','supervisor']))
                 <a href="{{ route('auditor.audit-logs') }}" class="{{ request()->routeIs('auditor.*') ? 'active' : '' }}">Audit Trail</a>
             @endif
-            @if(auth()->user()->hasRole('admin'))
+            @if(auth()->user()->hasAnyRole(['super_admin','admin']))
                 <a href="{{ route('admin.users.index') }}" class="{{ request()->routeIs('admin.users.*') ? 'active' : '' }}">Users</a>
+            @endif
+            @if(auth()->user()->isSuperAdmin())
                 <a href="{{ route('admin.branches.index') }}" class="{{ request()->routeIs('admin.branches.*') ? 'active' : '' }}">Branches</a>
                 <a href="{{ route('admin.settings.edit') }}" class="{{ request()->routeIs('admin.settings.*') ? 'active' : '' }}">Settings</a>
             @endif

@@ -16,8 +16,8 @@
 | cPanel account home | e.g. `/home/nnmfbuser` |
 | MySQL database name | e.g. `nnmfbuser_portal` |
 | MySQL username + password | dedicated app user (not root) |
-| Zoho mailbox | SMTP user + **app password** |
-| From address | e.g. `noreply@nigerianavymfb.com` (must be allowed by Zoho) |
+| Mail | Local sendmail (`MAIL_MAILER=sendmail`). Outbound SMTP to Zoho is blocked on this host |
+| From address | `noreply@nigerianavymfb.com` (must be `@nigerianavymfb.com` so Exim accepts the envelope) |
 | First admin name/email/password | **real** credentials — not DEMO |
 | One-time installer secret | long random string (only if using web installer) |
 
@@ -197,13 +197,9 @@ In File Manager → `nnmfb-portal/`:
 | `FILESYSTEM_DISK` | `local` |
 | `QUEUE_CONNECTION` | `database` |
 | `CACHE_STORE` | `database` |
-| `MAIL_MAILER` | `smtp` |
-| `MAIL_HOST` | `smtp.zoho.com` (or Zoho region host) |
-| `MAIL_PORT` | `587` |
-| `MAIL_USERNAME` | Zoho mailbox address |
-| `MAIL_PASSWORD` | Zoho **app password** |
-| `MAIL_ENCRYPTION` | `tls` |
-| `MAIL_FROM_ADDRESS` | allowed sender, e.g. `noreply@nigerianavymfb.com` |
+| `MAIL_MAILER` | `sendmail` — not `smtp`. This host blocks outbound SMTP |
+| `MAIL_SENDMAIL_PATH` | `"/usr/sbin/sendmail -t -i"` (PHP mail() style). Do not use `-bs` |
+| `MAIL_FROM_ADDRESS` | `noreply@nigerianavymfb.com` (domain must be `@nigerianavymfb.com`) |
 | `MAIL_FROM_NAME` | `"NNMFB Transfer Portal"` |
 | `INSTALLER_ENABLED` | `false` after go-live; `true` only during one-time web install |
 | `INSTALLER_SETUP_SECRET` | empty after go-live; long random during web install |
@@ -290,7 +286,7 @@ $u = \App\Models\User::create([
   'is_active' => true,
   'is_demo' => false,
 ]);
-$u->assignRole('admin');
+$u->assignRole('super_admin');
 exit
 ```
 
@@ -361,7 +357,7 @@ From a browser (logged out):
 | `https://<domain>/transfer/install` | 403 after lock |
 | Direct request for any path under app `vendor/` via web | Must fail |
 
-If `.env` is ever downloadable, rotate `APP_KEY`, DB password, and Zoho app password immediately.
+If `.env` is ever downloadable, rotate `APP_KEY` and the DB password immediately.
 
 ---
 
@@ -375,7 +371,7 @@ If `.env` is ever downloadable, rotate `APP_KEY`, DB password, and Zoho app pass
 - [ ] FT officer can Pick Up; second officer cannot claim same ticket  
 - [ ] Start → Complete works; Complete from Claimed without Start fails  
 - [ ] Reject requires reason; ticket remains searchable  
-- [ ] Forgot password returns generic message; Zoho delivers reset mail (or queue processes)  
+- [ ] Forgot password returns generic message; local sendmail delivers reset mail (welcome mail is synchronous; ticket mail still needs the queue cron)
 - [ ] Audit trail visible to admin/auditor; no edit/delete UI  
 - [ ] Main site menu links to `https://<domain>/transfer` (see `main-site-portal-link.md`)
 
@@ -399,8 +395,9 @@ Before go-live and on a schedule:
 **Live portal:** `https://transfer.nigerianavymfb.com`  
 **App root:** `/home2/nigeri45/nnmfb-portal`  
 **PHP binary (CloudLinux):** `/opt/alt/php83/usr/bin/php`  
-**Mail:** `MAIL_MAILER=sendmail` (SMTP outbound blocked on host)  
-**Cron:** `schedule:run` every minute + `queue:work --stop-when-empty` (queued mail)
+**Mail:** `MAIL_MAILER=sendmail` (SMTP outbound blocked on host). From / envelope sender must be `@nigerianavymfb.com`. Welcome mail is sent immediately (not queued). Ticket mail is still queued.  
+**Roles:** existing full-access `admin` rows are renamed to `super_admin` by the migration. New `admin` role onboards and activates users and can view tickets, but cannot manage Super Admins, assign Admin/Super Admin, deactivate themselves, or process tickets.  
+**Cron:** `schedule:run` every minute + `queue:work --stop-when-empty` (queued ticket mail)
 
 1. Backup DB + `nnmfb-portal` + public entry under the subdomain document root.
 2. Upload new Package B / `git pull` on SSH into the app root (keep production `.env`).
@@ -430,9 +427,10 @@ cd /home2/nigeri45/nnmfb-portal
 
 ### Onboarding
 
-- Admin **Add user** emails login URL + email + temporary password (failures never block create).
+- Super Admin or Admin **Add user** emails login URL + email + temporary password immediately via sendmail (failures are logged as `[mail]` errors and never block create).
 - First login forces **Change password**.
-- **Resend welcome** resets a new temporary password and emails it again.
+- **Resend welcome** resets a new temporary password, signs out old sessions, and emails it again.
+- Deactivating a user signs them out (including remember-me) and blocks password reset. An unchecked Active box now saves as inactive.
 
 ---
 

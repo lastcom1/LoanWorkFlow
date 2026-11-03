@@ -19,14 +19,16 @@
 <div>
 <label>Role</label>
 <select name="role" required>
-@foreach($roles as $role)<option value="{{ $role }}" @selected(old('role')==$role)>{{ $role }}</option>@endforeach
+@foreach($roles as $role)<option value="{{ $role }}" @selected(old('role')===$role)>{{ \App\Models\User::roleOptions()[$role] ?? $role }}</option>@endforeach
 </select>
 </div>
 <div><label>Temporary password (optional)</label><input type="password" name="password" autocomplete="new-password" placeholder="Leave blank to auto-generate"></div>
 <div><label>Confirm temporary password</label><input type="password" name="password_confirmation" autocomplete="new-password"></div>
-<div class="full help">New users must change this password on first login. A welcome email includes the login URL, email, and temporary password.</div>
-<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="send_welcome" value="1" @checked(old('send_welcome', true))> Send welcome email with temporary password</label></div>
-<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', true))> Active</label></div>
+<div class="full help">New users must change this password on first login. A welcome email includes the login URL, email, and temporary password. Mail is sent immediately through local sendmail, not the queue.</div>
+<input type="hidden" name="send_welcome" value="0">
+<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="send_welcome" value="1" @checked(old('send_welcome', '1') == '1')> Send welcome email with temporary password</label></div>
+<input type="hidden" name="is_active" value="0">
+<div class="full"><label style="display:flex;gap:.4rem;align-items:center;font-weight:500"><input type="checkbox" name="is_active" value="1" @checked(old('is_active', '1') == '1')> Active</label></div>
 <div><button class="btn btn-primary" type="submit">Create</button></div>
 </form>
 </div>

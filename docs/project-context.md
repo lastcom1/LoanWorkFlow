@@ -12,12 +12,12 @@ Internal banking operations platform for Nigerian Navy Microfinance Bank (NNMFB)
 
 - Laravel (PHP), Eloquent, migrations, Blade (or equivalent Laravel views)
 - MySQL/MariaDB suitable for XAMPP and cPanel shared hosting
-- Zoho SMTP via environment variables (no hardcoded secrets)
+- Production mail via local sendmail (outbound SMTP is blocked on the live host); From address must be @nigerianavymfb.com
 - Role-based access control; immutable audit trail; exclusive ticket claim with DB locking
 
 ## Roles
 
-System Administrator, MD/CEO, Supervisor / Head of Operations, Fund Transfer Officer (four demo accounts), Branch Staff / Ticket Submitter, optional Auditor (read-only).
+Super Admin (full access), Admin (onboard and activate/deactivate users, view tickets, cannot manage Super Admins or assign Admin/Super Admin, cannot operate tickets), MD/CEO, Supervisor / Head of Operations, Fund Transfer Officer (four demo accounts), Branch Staff / Ticket Submitter, optional Auditor (read-only).
 
 ## Core invariants
 

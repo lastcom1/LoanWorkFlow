@@ -4,11 +4,11 @@ namespace App\Services;
 
 use App\Mail\WelcomeUserMail;
 use App\Models\User;
+use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
-use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Throwable;
 
 class UserOnboardingService
@@ -55,27 +55,45 @@ class UserOnboardingService
     }
 
     /**
-     * Send welcome / temporary-password email. Never throws to callers.
+     * Send welcome / temporary-password email immediately. Never throws to callers.
+     * sendNow skips the queue even if the mailable is later marked ShouldQueue —
+     * this host has no always-on worker, and the temp password must not sit in jobs.
      */
     public function sendWelcomeEmail(User $user, string $temporaryPassword, ?User $actor = null): bool
     {
+        $mailable = new WelcomeUserMail($user, $temporaryPassword);
+
+        if ($mailable instanceof ShouldQueue) {
+            Log::error('[mail] Welcome email mailable implements ShouldQueue. Sending synchronously anyway so it is not left in the jobs table.', [
+                'user_id' => $user->id,
+            ]);
+        }
+
         try {
-            Mail::to($user->email)->send(new WelcomeUserMail($user, $temporaryPassword));
+            Mail::to($user->email)->sendNow($mailable);
 
             $this->audit->log('welcome_email_sent', $actor, $user, null, null, [
                 'email' => $user->email,
+                'mailer' => config('mail.default'),
+                'from' => config('mail.from.address'),
             ]);
 
             return true;
-        } catch (TransportExceptionInterface|Throwable $e) {
-            Log::warning('Welcome / temp-password mail failed', [
+        } catch (Throwable $e) {
+            Log::error('[mail] Welcome email failed', [
                 'user_id' => $user->id,
-                'email_hash' => hash('sha256', strtolower($user->email)),
+                'email_hash' => hash('sha256', strtolower((string) $user->email)),
+                'mailer' => config('mail.default'),
+                'from' => config('mail.from.address'),
+                'sendmail_path' => config('mail.mailers.sendmail.path'),
+                'exception' => $e::class,
                 'error' => $e->getMessage(),
             ]);
 
             $this->audit->log('welcome_email_failed', $actor, $user, null, null, null, [
                 'error' => $e->getMessage(),
+                'mailer' => config('mail.default'),
+                'exception' => $e::class,
             ]);
 
             return false;

@@ -7,7 +7,7 @@ Production-oriented Laravel portal for Nigerian Navy Microfinance Bank (NNMFB) s
 - Laravel 12 (PHP **8.3+** — required by `composer.lock` / Spatie Permission)
 - MySQL/MariaDB or SQLite (local)
 - Spatie Laravel Permission (RBAC)
-- Zoho SMTP via `.env`
+- Production mail via local sendmail (`MAIL_MAILER=sendmail`); see `.env.production.example`
 - Blade UI (navy / gold branding)
 
 ## Quick local start
