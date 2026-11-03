@@ -1,0 +1,16 @@
+# Place this file in the application root ABOVE public_html document root
+# when deploying Package B so non-public files are not web-accessible.
+# If document root is public_html and the Laravel `public/` contents are
+# copied into public_html, this file belongs one level above public_html.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+# Deny direct access to sensitive paths if misconfigured
+<IfModule mod_authz_core.c>
+    <FilesMatch "(^\.env|composer\.(json|lock)|artisan)">
+        Require all denied
+    </FilesMatch>
+</IfModule>

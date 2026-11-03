@@ -1,0 +1,137 @@
+name: Tests
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  phpunit:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, sqlite, pdo_sqlite, bcmath, ctype, fileinfo, openssl, tokenizer, xml, curl, zip, gd, intl
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare application
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          mkdir -p database
+          touch database/database.sqlite
+          # Installer stays off; demo seed allowed for local-like CI env
+          printf '\nINSTALLER_ENABLED=false\nSEED_DEMO_DATA=true\n' >> .env
+
+      - name: Run tests
+        run: php artisan test
+
+  mysql-migrate:
+    name: MySQL 8 migrations
+    runs-on: ubuntu-latest
+
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root
+          MYSQL_DATABASE: nnmfb_ci
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: mbstring, pdo_mysql, bcmath, ctype, fileinfo, openssl, tokenizer, xml, curl, zip, intl
+          coverage: none
+
+      - name: Install Composer dependencies
+        run: composer install --no-interaction --prefer-dist --optimize-autoloader
+
+      - name: Prepare MySQL .env
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+          # Replace sqlite default with MySQL 8 service credentials
+          sed -i 's/^DB_CONNECTION=sqlite$/DB_CONNECTION=mysql/' .env
+          # Uncomment / inject remaining DB_* keys
+          for pair in \
+            'DB_HOST=127.0.0.1' \
+            'DB_PORT=3306' \
+            'DB_DATABASE=nnmfb_ci' \
+            'DB_USERNAME=root' \
+            'DB_PASSWORD=root'
+          do
+            key="${pair%%=*}"
+            if grep -q "^${key}=" .env; then
+              sed -i "s|^${key}=.*|${pair}|" .env
+            elif grep -q "^# ${key}=" .env; then
+              sed -i "s|^# ${key}=.*|${pair}|" .env
+            else
+              echo "${pair}" >> .env
+            fi
+          done
+          printf '\nINSTALLER_ENABLED=false\nSEED_DEMO_DATA=false\n' >> .env
+          grep -E '^DB_' .env
+
+      - name: Wait for MySQL
+        run: |
+          php -r '
+            for ($i = 0; $i < 30; $i++) {
+              try {
+                new PDO("mysql:host=127.0.0.1;port=3306", "root", "root");
+                echo "MySQL is up\n";
+                exit(0);
+              } catch (Throwable $e) {
+                sleep(2);
+              }
+            }
+            fwrite(STDERR, "MySQL did not become ready\n");
+            exit(1);
+          '
+
+      - name: Run migrations against MySQL 8
+        run: php artisan migrate --force --no-interaction
+
+      - name: Verify MySQL index name length (hot-path)
+        run: |
+          php -r '
+            $tooLong = [];
+            $pdo = new PDO("mysql:host=127.0.0.1;dbname=nnmfb_ci", "root", "root");
+            $stmt = $pdo->query("SELECT INDEX_NAME FROM information_schema.STATISTICS WHERE TABLE_SCHEMA = \"nnmfb_ci\"");
+            foreach ($stmt as $row) {
+              $n = $row["INDEX_NAME"];
+              if (strlen($n) > 64) { $tooLong[] = $n; }
+            }
+            if ($tooLong) {
+              fwrite(STDERR, "Index names >64 chars:\n".implode("\n", $tooLong)."\n");
+              exit(1);
+            }
+            $check = $pdo->query("SHOW INDEX FROM transfer_tickets WHERE Key_name = \"tt_account_amount_idx\"");
+            if (!$check->fetch()) {
+              fwrite(STDERR, "Missing expected index tt_account_amount_idx\n");
+              exit(1);
+            }
+            echo "OK: tt_account_amount_idx present; no index names >64\n";
+          '
+
+      - name: Seed production baseline
+        run: php artisan db:seed --class=ProductionSeeder --force --no-interaction
